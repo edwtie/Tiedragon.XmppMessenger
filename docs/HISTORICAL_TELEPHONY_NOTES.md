@@ -28,6 +28,27 @@ TeleToets was useful because it removed friction from typed communication. The d
 
 But the form must change. Dedicated telephone-era hardware was eventually replaced by internet and smartphones.
 
+## Technical Note: DTMF And Telephone-Era Signaling
+
+DTMF means Dual-Tone Multi-Frequency. It is the touch-tone telephone technique where each key press sends two audio frequencies over the voice channel. Classic telephony used DTMF for keypad signaling, menu control and remote equipment commands.
+
+TeleToets belongs to that telephone-era design space: text and commands were carried through ordinary telephone audio/signaling paths instead of internet data channels.
+
+Important caution:
+
+- DTMF is well documented as the telephone keypad/touch-tone method.
+- Text telephones could also use modem-like text transmission methods, not only plain DTMF key tones.
+- We should treat TeleToets as a useful historical reference, not as a modern protocol model to copy.
+
+Modern replacement:
+
+| Telephone-era method | Modern method |
+| --- | --- |
+| DTMF / in-band tones | XMPP stanzas |
+| Text telephone signaling | XEP-0301 RTT and normal chat messages |
+| Telephone audio path | WebRTC audio/video transport |
+| Dedicated hardware protocol | Open internet protocol |
+
 ## Lesson For TabMessenger
 
 TabMessenger should keep the useful principle and avoid the outdated form.
