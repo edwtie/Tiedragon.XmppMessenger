@@ -26,6 +26,23 @@ Several Dutch care or assistive-technology suppliers have run into continuity pr
 
 > A communication platform should not survive only when one care payer or reimbursement system keeps paying.
 
+### VisiCom And TeleToets
+
+Goedhart Electronics developed VisiCom, a text telephone for deaf users, in 1986. In 1989 it introduced TeleToets as an extra device for hearing users. TeleToets offered a QWERTY-like keyboard and a small LCD display so hearing users could type replies more easily than with a normal telephone keypad.
+
+The idea was practical for its time: it improved communication between hearing users and deaf or hard-of-hearing users through dedicated telephone-era hardware.
+
+The long-term lesson is different:
+
+- dedicated hardware can help early adoption, but it can become obsolete quickly
+- telephone-era devices were replaced by internet, smartphones and general-purpose communication apps
+- a product should not depend on special hardware when open software and mainstream devices can solve the same problem for more people
+- accessibility features should move into everyday communication tools instead of staying locked in separate devices
+
+For TabMessenger this means:
+
+> Do not build a modern TeleToets as a closed device. Build the communication layer for the devices people already use: iOS, Android and later desktop/web.
+
 ## Product Principle
 
 TabMessenger should be useful for everyone, not only reimbursed as a care tool.
@@ -54,6 +71,11 @@ Avoid one fragile revenue source. Use multiple routes:
 Accessibility is a mainstream communication value, not a separate isolated market.
 
 If the product helps everyone communicate more clearly, it is less vulnerable than a product that exists only because a specific care system reimburses it.
+
+Avoid both traps:
+
+- the reimbursement trap: the product exists only if a care payer pays
+- the hardware trap: the product exists only on special or declining devices
 
 ## References For The Broader Risk
 
