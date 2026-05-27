@@ -60,6 +60,7 @@
     sequence: 0,
     previousText: "",
     remoteText: "",
+    remoteSender: "Remote",
     conversations: [
       {
         id: "relay",
@@ -499,7 +500,7 @@
       return;
     }
 
-    const envelope = { type: "message", text, xml: "" };
+    const envelope = createRelayEnvelope("message", text, "");
     state.relaySocket.send(JSON.stringify(envelope));
     appendDebug("relay-out", JSON.stringify(envelope));
     addMessage("self", text, "sent");
@@ -533,9 +534,28 @@
     const xml = eventName === "edit"
       ? `<rtt xmlns="urn:xmpp:rtt:0" seq="${state.sequence++}">${actions ?? `<t p="0">${escapeXml(text)}</t>`}</rtt>`
       : `<rtt xmlns="urn:xmpp:rtt:0" event="${eventName}" seq="${state.sequence++}"><t p="0">${escapeXml(text)}</t></rtt>`;
-    const envelope = { type: "rtt", text, xml };
+    const envelope = createRelayEnvelope("rtt", text, xml);
     state.relaySocket.send(JSON.stringify(envelope));
     appendDebug("rtt-out", xml);
+  }
+
+  function createRelayEnvelope(type, text, xml) {
+    return {
+      type,
+      text,
+      xml,
+      sender: currentSenderName()
+    };
+  }
+
+  function currentSenderName() {
+    return el.displayNameInput.value.trim() || "Me";
+  }
+
+  function envelopeSender(envelope) {
+    return typeof envelope.sender === "string" && envelope.sender.trim()
+      ? envelope.sender.trim()
+      : "Remote";
   }
 
   function applyRelayEnvelope(envelope) {
@@ -547,20 +567,23 @@
 
     if (envelope.type === "message") {
       state.remoteText = "";
+      state.remoteSender = envelopeSender(envelope);
       renderRemoteDraft();
-      addMessage("peer", envelope.text ?? "", "received");
+      addMessage("peer", envelope.text ?? "", "received", state.remoteSender);
       return;
     }
 
     state.remoteText = envelope.text ?? "";
+    state.remoteSender = envelopeSender(envelope);
     renderRemoteDraft();
   }
 
-  function addMessage(direction, text, status) {
+  function addMessage(direction, text, status, sender = null) {
     const conversation = activeConversation();
     conversation.messages.push({
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
       direction,
+      sender,
       text,
       status,
       timestamp: new Date()
@@ -621,7 +644,10 @@
       item.className = "message " + message.direction;
       const meta = document.createElement("div");
       meta.className = "message-meta";
-      meta.textContent = `${message.direction === "self" ? el.displayNameInput.value : "Remote"} - ${message.status} - ${formatTime(message.timestamp)}`;
+      const sender = message.direction === "self"
+        ? currentSenderName()
+        : (message.sender || "Remote");
+      meta.textContent = `${sender} - ${message.status} - ${formatTime(message.timestamp)}`;
       const body = document.createElement("div");
       body.className = "message-body";
       renderRichText(body, message.text);
@@ -640,7 +666,7 @@
     }
 
     el.remoteDraft.hidden = false;
-    el.remoteDraftName.textContent = "Remote typing";
+    el.remoteDraftName.textContent = `${state.remoteSender || "Remote"} typing`;
     el.remoteDraftText.textContent = state.remoteText;
   }
 
