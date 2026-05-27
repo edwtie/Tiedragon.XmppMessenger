@@ -41,9 +41,10 @@ that core.
 
 | XEP | Name | Purpose | Status |
 | --- | --- | --- | --- |
-| XEP-0166 | Jingle | Session signaling. | Wire model started |
-| XEP-0167 | Jingle RTP Sessions | Audio/video RTP session descriptions. | RTP content model started |
-| XEP-0176 | Jingle ICE-UDP Transport | ICE candidates for NAT traversal. | Empty transport model started |
+| XEP-0166 | Jingle | Session signaling. | Session and transport-info model started |
+| XEP-0167 | Jingle RTP Sessions | Audio/video RTP session descriptions. | RTP payload, session-info and web call demo started |
+| XEP-0176 | Jingle ICE-UDP Transport | ICE candidates for NAT traversal. | Candidate model and web transport-info demo started |
+| XEP-0320 | DTLS-SRTP in Jingle | WebRTC-style media security fingerprints. | Fingerprint model started; browser DTLS is WebRTC-managed |
 | XEP-0177 | Jingle Raw UDP Transport | Simple UDP transport. | Future |
 | XEP-0343 | Signaling WebRTC DataChannels in Jingle | WebRTC data channels through Jingle. | Future |
 

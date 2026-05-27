@@ -220,18 +220,22 @@ item is implemented, tested and documented.
 - [ ] Trust/fingerprint UI model.
 - [ ] Interoperability smoke with existing OMEMO clients.
 
-## XEP-0166/0167/0176 - Jingle Calls
+## XEP-0166/0167/0176/0320 - Jingle Calls
 
 - [x] Jingle session-initiate serializer.
 - [x] Jingle session-accept serializer.
 - [x] Jingle session-terminate serializer.
 - [x] RTP content/payload type serializer.
-- [x] ICE-UDP transport placeholder.
+- [x] ICE-UDP transport element.
+- [x] ICE candidate serialization and parser.
+- [x] DTLS-SRTP fingerprint serialization and parser.
+- [x] Jingle `transport-info` candidate update serializer.
+- [x] Jingle RTP `session-info` states for ringing/hold/mute.
 - [x] Jingle parser for action, sid and content.
 - [x] `XmppStreamClient` Jingle send helper.
-- [ ] ICE candidate serialization.
-- [ ] WebRTC peer connection bridge.
-- [ ] Audio/video permission and device UI.
+- [x] WebRTC peer connection bridge in the web client demo.
+- [x] Basic audio/video permission UI.
+- [ ] Device picker and per-call media settings.
 - [ ] Interoperability smoke with existing Jingle client.
 
 ## Tooling And Samples

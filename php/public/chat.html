@@ -48,11 +48,26 @@
             <h2 id="activeConversationName">Relay room</h2>
             <span id="activeConversationMeta">Local PHP relay</span>
           </div>
-          <div class="mode-switch" role="tablist" aria-label="Transport mode">
-            <button id="relayModeButton" type="button" class="selected" data-i18n="mode.relay">Relay</button>
-            <button id="xmppModeButton" type="button">RFC 7395</button>
+          <div class="chat-header-actions">
+            <div class="call-controls" role="toolbar" aria-label="Call controls">
+              <button id="startAudioCallButton" type="button" data-i18n="button.audio_call">Audio call</button>
+              <button id="startVideoCallButton" type="button" data-i18n="button.video_call">Video call</button>
+              <button id="answerCallButton" type="button" hidden data-i18n="button.answer_call">Answer</button>
+              <button id="rejectCallButton" type="button" hidden data-i18n="button.reject_call">Reject</button>
+              <button id="hangupCallButton" type="button" disabled data-i18n="button.hangup_call">Hang up</button>
+              <span id="callStatus" class="call-status" data-i18n="call.idle">No call</span>
+            </div>
+            <div class="mode-switch" role="tablist" aria-label="Transport mode">
+              <button id="relayModeButton" type="button" class="selected" data-i18n="mode.relay">Relay</button>
+              <button id="xmppModeButton" type="button">RFC 7395</button>
+            </div>
           </div>
         </div>
+
+        <section id="callPanel" class="call-panel" hidden aria-label="Call media">
+          <video id="remoteVideo" autoplay playsinline></video>
+          <video id="localVideo" autoplay muted playsinline></video>
+        </section>
 
         <div id="messageTimeline" class="message-timeline" aria-live="polite"></div>
 

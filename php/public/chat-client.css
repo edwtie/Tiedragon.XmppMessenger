@@ -211,7 +211,7 @@ textarea {
 .chat-panel {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 0;
   background: #0f1724;
@@ -272,6 +272,62 @@ textarea {
   gap: 12px;
   border-bottom: 1px solid #314159;
   padding: 12px 14px;
+}
+
+.chat-header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.call-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.call-status {
+  min-width: 120px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.call-panel {
+  position: relative;
+  display: grid;
+  min-height: 210px;
+  border-bottom: 1px solid #314159;
+  background: #07111f;
+  overflow: hidden;
+}
+
+.call-panel[hidden] {
+  display: none;
+}
+
+.call-panel video {
+  width: 100%;
+  height: 100%;
+  min-height: 210px;
+  background: #050b14;
+  object-fit: contain;
+}
+
+.call-panel #localVideo {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: min(180px, 32%);
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #6aa2ff;
+  border-radius: var(--radius);
+  background: #0b1220;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .32);
 }
 
 .message-timeline {
@@ -603,13 +659,26 @@ textarea {
     flex-wrap: wrap;
   }
 
+  .chat-header-actions,
+  .call-controls,
   .top-actions,
   .mode-switch,
   .app-tabs {
     width: 100%;
   }
 
+  .chat-header-actions {
+    justify-items: stretch;
+  }
+
+  .call-status {
+    flex: 1 1 100%;
+    min-width: 0;
+    text-align: left;
+  }
+
   .top-actions button,
+  .call-controls button,
   .mode-switch button {
     flex: 1 1 0;
     min-width: 0;

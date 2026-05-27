@@ -55,6 +55,7 @@ Normal app flow:
 | `XmppMessageCarbons` | XEP-0280 enable and forwarded message parsing. |
 | `XmppMessageArchive` | XEP-0313 archive query/result parsing. |
 | `XmppMultiUserChat` | XEP-0045 MUC room discovery, room items, join/leave, config forms and admin helpers. |
+| `XmppJingle` | XEP-0166/0167/0176/0320 call signaling, RTP payloads, ICE candidates, DTLS fingerprints and session-info states. |
 | `XmppMeCommand` | XEP-0245 `/me ` body detection and display helper. |
 | `XmppVCardTemp` | XEP-0054 vcard-temp get/set/result helpers. |
 | `XmppPushNotifications` | XEP-0357 enable/disable push IQ payloads. |

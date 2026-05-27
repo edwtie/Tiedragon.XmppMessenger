@@ -70,6 +70,7 @@
     remoteText: "",
     remoteFrom: "",
     remoteDraftUpdatedAt: null,
+    call: null,
     conversations: [
       {
         id: "relay",
@@ -91,6 +92,15 @@
     conversationItems: byId("conversationItems"),
     activeConversationName: byId("activeConversationName"),
     activeConversationMeta: byId("activeConversationMeta"),
+    startAudioCallButton: byId("startAudioCallButton"),
+    startVideoCallButton: byId("startVideoCallButton"),
+    answerCallButton: byId("answerCallButton"),
+    rejectCallButton: byId("rejectCallButton"),
+    hangupCallButton: byId("hangupCallButton"),
+    callStatus: byId("callStatus"),
+    callPanel: byId("callPanel"),
+    remoteVideo: byId("remoteVideo"),
+    localVideo: byId("localVideo"),
     relayModeButton: byId("relayModeButton"),
     xmppModeButton: byId("xmppModeButton"),
     dropOverlay: byId("dropOverlay"),
@@ -147,6 +157,11 @@
     el.connectButton.addEventListener("click", connectRelay);
     el.disconnectButton.addEventListener("click", disconnectAll);
     el.addConversationButton.addEventListener("click", addConversation);
+    el.startAudioCallButton.addEventListener("click", () => startCall("audio"));
+    el.startVideoCallButton.addEventListener("click", () => startCall("video"));
+    el.answerCallButton.addEventListener("click", answerIncomingCall);
+    el.rejectCallButton.addEventListener("click", rejectIncomingCall);
+    el.hangupCallButton.addEventListener("click", hangupCall);
     el.relayModeButton.addEventListener("click", () => setMode("relay"));
     el.xmppModeButton.addEventListener("click", () => setMode("xmpp"));
     el.closeTabPanelButton.addEventListener("click", () => activateTab("chat"));
@@ -735,6 +750,8 @@
   }
 
   function disconnectAll() {
+    cleanupCall(true);
+
     if (state.relaySocket) {
       state.relaySocket.close();
     }
@@ -910,14 +927,21 @@
   }
 
   function applyRelayEnvelope(envelope) {
-    if (!envelope || (envelope.type !== "rtt" && envelope.type !== "message")) {
+    if (!envelope || (envelope.type !== "rtt" && envelope.type !== "message" && envelope.type !== "jingle")) {
       return;
     }
 
-    appendDebug("relay-in", envelope.type === "rtt" ? envelope.xml : JSON.stringify(envelope));
+    appendDebug("relay-in", envelope.type === "rtt" || envelope.type === "jingle"
+      ? envelope.xml || JSON.stringify(redactJingleForLog(envelope))
+      : JSON.stringify(envelope));
 
     if (envelope.clientId && envelope.clientId === state.clientInstance.id) {
       appendDebug("relay-skip", "Ignored own echoed envelope");
+      return;
+    }
+
+    if (envelope.type === "jingle") {
+      handleJingleEnvelope(envelope);
       return;
     }
 
@@ -933,6 +957,470 @@
     state.remoteFrom = envelopeFrom(envelope);
     state.remoteDraftUpdatedAt = new Date();
     renderActiveConversation();
+  }
+
+  async function startCall(mediaKind) {
+    if (!isRelayConnected()) {
+      setCallStatus(t("call.connect_first", "Connect the relay first."));
+      return;
+    }
+
+    if (!supportsWebRtc()) {
+      setCallStatus(t("call.unsupported", "WebRTC is not available in this browser."));
+      return;
+    }
+
+    if (state.call) {
+      setCallStatus(t("call.already_active", "A call is already active."));
+      return;
+    }
+
+    const sid = "td-" + createShortId();
+    const call = createCallState(sid, currentToJid(), "caller", mediaKind);
+    state.call = call;
+    updateCallUi();
+    setCallStatus(t("call.starting", "Starting call..."));
+
+    try {
+      await openLocalMedia(call);
+      createPeerConnection(call);
+      const offer = await call.pc.createOffer();
+      await call.pc.setLocalDescription(offer);
+      sendJingleEnvelope("session-initiate", {
+        sid: call.sid,
+        mediaKind: call.mediaKind,
+        sdp: offer.sdp,
+        descriptionType: offer.type
+      });
+      setCallStatus(t("call.ringing", "Ringing..."));
+      addMessage("self", call.mediaKind === "video"
+        ? t("call.video_started", "Video call started")
+        : t("call.audio_started", "Audio call started"), "jingle");
+    } catch (error) {
+      setCallStatus(`${t("call.failed", "Call failed")}: ${error.message}`);
+      cleanupCall(false);
+    }
+  }
+
+  async function answerIncomingCall() {
+    const call = state.call;
+    if (!call?.incomingOffer) {
+      return;
+    }
+
+    setCallStatus(t("call.answering", "Answering..."));
+    try {
+      await openLocalMedia(call);
+      createPeerConnection(call);
+      await call.pc.setRemoteDescription({ type: "offer", sdp: call.incomingOffer });
+      call.remoteDescriptionSet = true;
+      await flushPendingIceCandidates(call);
+      const answer = await call.pc.createAnswer();
+      await call.pc.setLocalDescription(answer);
+      sendJingleEnvelope("session-accept", {
+        sid: call.sid,
+        mediaKind: call.mediaKind,
+        sdp: answer.sdp,
+        descriptionType: answer.type
+      });
+      call.incomingOffer = null;
+      setCallStatus(t("call.connected", "Call connected"));
+      updateCallUi();
+    } catch (error) {
+      setCallStatus(`${t("call.failed", "Call failed")}: ${error.message}`);
+      sendJingleEnvelope("session-terminate", {
+        sid: call.sid,
+        reason: "failed-application",
+        reasonText: error.message
+      });
+      cleanupCall(false);
+    }
+  }
+
+  function rejectIncomingCall() {
+    const call = state.call;
+    if (!call) {
+      return;
+    }
+
+    sendJingleEnvelope("session-terminate", {
+      sid: call.sid,
+      reason: "decline",
+      reasonText: t("call.rejected", "Call rejected")
+    });
+    cleanupCall(false);
+    setCallStatus(t("call.rejected", "Call rejected"));
+  }
+
+  function hangupCall() {
+    const call = state.call;
+    if (!call) {
+      return;
+    }
+
+    sendJingleEnvelope("session-terminate", {
+      sid: call.sid,
+      reason: "success",
+      reasonText: t("call.ended", "Call ended")
+    });
+    cleanupCall(false);
+    setCallStatus(t("call.ended", "Call ended"));
+  }
+
+  function handleJingleEnvelope(envelope) {
+    if (!isAddressedToMe(envelope)) {
+      return;
+    }
+
+    const action = String(envelope.action ?? "");
+    if (action === "session-initiate") {
+      handleIncomingSessionInitiate(envelope);
+    } else if (action === "session-accept") {
+      handleIncomingSessionAccept(envelope);
+    } else if (action === "transport-info") {
+      handleIncomingTransportInfo(envelope);
+    } else if (action === "session-info") {
+      setCallStatus(jingleInfoText(envelope.info));
+    } else if (action === "session-terminate") {
+      cleanupCall(false);
+      setCallStatus(envelope.reasonText || t("call.remote_ended", "Remote ended the call"));
+    }
+  }
+
+  function handleIncomingSessionInitiate(envelope) {
+    if (!envelope.sdp || typeof envelope.sdp !== "string") {
+      appendDebug("jingle-error", "session-initiate without SDP");
+      return;
+    }
+
+    if (state.call) {
+      sendJingleEnvelope("session-terminate", {
+        sid: envelope.sid,
+        to: envelope.from,
+        reason: "busy",
+        reasonText: t("call.busy", "Busy")
+      });
+      return;
+    }
+
+    const call = createCallState(
+      String(envelope.sid || "td-" + createShortId()),
+      envelopeFrom(envelope),
+      "receiver",
+      envelope.mediaKind === "video" ? "video" : "audio");
+    call.incomingOffer = envelope.sdp;
+    state.call = call;
+    sendJingleEnvelope("session-info", {
+      sid: call.sid,
+      to: call.peer,
+      info: "ringing"
+    });
+    setCallStatus(`${t("call.incoming", "Incoming call from")} ${displayNameForJid(call.peer)}`);
+    addMessage("peer", call.mediaKind === "video"
+      ? t("call.video_incoming", "Incoming video call")
+      : t("call.audio_incoming", "Incoming audio call"), "jingle", call.peer);
+    updateCallUi();
+  }
+
+  async function handleIncomingSessionAccept(envelope) {
+    const call = state.call;
+    if (!call || call.sid !== envelope.sid || !envelope.sdp || !call.pc) {
+      return;
+    }
+
+    try {
+      await call.pc.setRemoteDescription({ type: "answer", sdp: envelope.sdp });
+      call.remoteDescriptionSet = true;
+      await flushPendingIceCandidates(call);
+      setCallStatus(t("call.connected", "Call connected"));
+      updateCallUi();
+    } catch (error) {
+      setCallStatus(`${t("call.failed", "Call failed")}: ${error.message}`);
+    }
+  }
+
+  async function handleIncomingTransportInfo(envelope) {
+    const call = state.call;
+    if (!call || call.sid !== envelope.sid || !envelope.candidate) {
+      return;
+    }
+
+    if (!call.pc || !call.remoteDescriptionSet) {
+      call.pendingCandidates.push(envelope.candidate);
+      return;
+    }
+
+    try {
+      await call.pc.addIceCandidate(new RTCIceCandidate(envelope.candidate));
+    } catch (error) {
+      appendDebug("jingle-ice-error", error.message);
+    }
+  }
+
+  async function flushPendingIceCandidates(call) {
+    while (call.pendingCandidates.length > 0 && call.pc && call.remoteDescriptionSet) {
+      const candidate = call.pendingCandidates.shift();
+      await call.pc.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }
+
+  function createCallState(sid, peer, role, mediaKind) {
+    return {
+      sid,
+      peer,
+      role,
+      mediaKind,
+      pc: null,
+      localStream: null,
+      remoteStream: null,
+      incomingOffer: null,
+      pendingCandidates: [],
+      remoteDescriptionSet: false
+    };
+  }
+
+  function createPeerConnection(call) {
+    if (call.pc) {
+      return call.pc;
+    }
+
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    call.pc = pc;
+
+    if (call.localStream) {
+      for (const track of call.localStream.getTracks()) {
+        pc.addTrack(track, call.localStream);
+      }
+    }
+
+    pc.addEventListener("icecandidate", (event) => {
+      if (!event.candidate || !state.call || state.call.sid !== call.sid) {
+        return;
+      }
+
+      sendJingleEnvelope("transport-info", {
+        sid: call.sid,
+        mediaKind: call.mediaKind,
+        candidate: event.candidate.toJSON()
+      });
+    });
+
+    pc.addEventListener("track", (event) => {
+      if (!call.remoteStream) {
+        call.remoteStream = new MediaStream();
+      }
+
+      call.remoteStream.addTrack(event.track);
+      el.remoteVideo.srcObject = call.remoteStream;
+      el.callPanel.hidden = false;
+      updateCallUi();
+    });
+
+    pc.addEventListener("connectionstatechange", () => {
+      if (pc.connectionState === "connected") {
+        setCallStatus(t("call.connected", "Call connected"));
+      } else if (pc.connectionState === "failed") {
+        setCallStatus(t("call.failed", "Call failed"));
+      } else if (pc.connectionState === "disconnected") {
+        setCallStatus(t("call.disconnected", "Call disconnected"));
+      }
+    });
+
+    return pc;
+  }
+
+  async function openLocalMedia(call) {
+    if (call.localStream) {
+      return call.localStream;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error(t("call.media_unavailable", "Camera/microphone access is not available."));
+    }
+
+    const wantsVideo = call.mediaKind === "video";
+    try {
+      call.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: wantsVideo ? { width: { ideal: 640 }, height: { ideal: 360 } } : false
+      });
+    } catch (error) {
+      if (!wantsVideo) {
+        throw error;
+      }
+
+      appendDebug("media", `Video unavailable, falling back to audio: ${error.message}`);
+      call.mediaKind = "audio";
+      call.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    }
+
+    el.localVideo.srcObject = call.localStream;
+    el.callPanel.hidden = false;
+    updateCallUi();
+    return call.localStream;
+  }
+
+  function cleanupCall(notifyRemote) {
+    const call = state.call;
+    if (!call) {
+      updateCallUi();
+      return;
+    }
+
+    if (notifyRemote) {
+      sendJingleEnvelope("session-terminate", {
+        sid: call.sid,
+        reason: "success",
+        reasonText: t("call.ended", "Call ended")
+      });
+    }
+
+    call.pc?.close();
+    call.localStream?.getTracks().forEach((track) => track.stop());
+    call.remoteStream?.getTracks().forEach((track) => track.stop());
+    el.localVideo.srcObject = null;
+    el.remoteVideo.srcObject = null;
+    el.callPanel.hidden = true;
+    state.call = null;
+    updateCallUi();
+  }
+
+  function sendJingleEnvelope(action, payload = {}) {
+    if (!isRelayConnected()) {
+      appendDebug("jingle-error", "Relay is not connected");
+      return;
+    }
+
+    const envelope = {
+      ...createRelayEnvelope("jingle", "", ""),
+      action,
+      sid: payload.sid || state.call?.sid || "td-" + createShortId(),
+      to: payload.to || state.call?.peer || currentToJid(),
+      mediaKind: payload.mediaKind || state.call?.mediaKind || "audio",
+      info: payload.info || null,
+      reason: payload.reason || null,
+      reasonText: payload.reasonText || null,
+      sdp: payload.sdp || null,
+      descriptionType: payload.descriptionType || null,
+      candidate: payload.candidate || null
+    };
+    envelope.xml = createJingleDebugXml(action, envelope);
+    state.relaySocket.send(JSON.stringify(envelope));
+    appendDebug("jingle-out", envelope.xml);
+  }
+
+  function createJingleDebugXml(action, envelope) {
+    const sid = escapeXml(envelope.sid);
+    const to = escapeXml(envelope.to || currentToJid());
+    const from = escapeXml(currentFromJid());
+    const initiator = state.call?.role === "caller" ? from : escapeXml(envelope.from || currentFromJid());
+    const responder = state.call?.role === "receiver" ? from : to;
+    const attrs = `xmlns="urn:xmpp:jingle:1" action="${escapeXml(action)}" sid="${sid}" initiator="${initiator}" responder="${responder}"`;
+    let payload = "";
+
+    if (action === "session-initiate" || action === "session-accept") {
+      payload = createJingleContentXml("audio", "audio")
+        + (envelope.mediaKind === "video" ? createJingleContentXml("video", "video") : "");
+    } else if (action === "transport-info") {
+      payload = `<content creator="initiator" name="${escapeXml(envelope.mediaKind || "audio")}"><transport xmlns="urn:xmpp:jingle:transports:ice-udp:1">${createJingleCandidateXml(envelope.candidate)}</transport></content>`;
+    } else if (action === "session-info") {
+      payload = `<${escapeXml(envelope.info || "ringing")} xmlns="urn:xmpp:jingle:apps:rtp:info:1"/>`;
+    } else if (action === "session-terminate") {
+      const reason = escapeXml(envelope.reason || "success");
+      payload = `<reason><${reason}/>${envelope.reasonText ? `<text>${escapeXml(envelope.reasonText)}</text>` : ""}</reason>`;
+    }
+
+    return `<iq xmlns="jabber:client" type="set" from="${from}" to="${to}" id="call-${sid}"><jingle ${attrs}>${payload}</jingle></iq>`;
+  }
+
+  function createJingleContentXml(name, media) {
+    const payload = media === "video"
+      ? '<payload-type id="96" name="VP8" clockrate="90000"/>'
+      : '<payload-type id="111" name="opus" clockrate="48000" channels="2"><parameter name="minptime" value="10"/><parameter name="useinbandfec" value="1"/></payload-type>';
+    return `<content creator="initiator" name="${name}" senders="both"><description xmlns="urn:xmpp:jingle:apps:rtp:1" media="${media}">${payload}</description><transport xmlns="urn:xmpp:jingle:transports:ice-udp:1"><fingerprint xmlns="urn:xmpp:jingle:apps:dtls:0" hash="sha-256" setup="actpass">browser-managed</fingerprint></transport></content>`;
+  }
+
+  function createJingleCandidateXml(candidate) {
+    if (!candidate?.candidate) {
+      return "";
+    }
+
+    const parsed = parseIceCandidateLine(candidate.candidate);
+    return `<candidate component="${parsed.component}" foundation="${escapeXml(parsed.foundation)}" generation="0" id="${escapeXml(createShortId())}" ip="${escapeXml(parsed.ip)}" network="0" port="${parsed.port}" priority="${parsed.priority}" protocol="${escapeXml(parsed.protocol)}" type="${escapeXml(parsed.type)}"/>`;
+  }
+
+  function parseIceCandidateLine(line) {
+    const parts = String(line).replace(/^candidate:/, "").split(/\s+/);
+    const typIndex = parts.indexOf("typ");
+    return {
+      foundation: parts[0] || "browser",
+      component: Number(parts[1]) || 1,
+      protocol: (parts[2] || "udp").toLowerCase(),
+      priority: Number(parts[3]) || 1,
+      ip: parts[4] || "0.0.0.0",
+      port: Number(parts[5]) || 0,
+      type: typIndex >= 0 ? parts[typIndex + 1] || "host" : "host"
+    };
+  }
+
+  function updateCallUi() {
+    const call = state.call;
+    const incoming = Boolean(call?.incomingOffer);
+    el.answerCallButton.hidden = !incoming;
+    el.rejectCallButton.hidden = !incoming;
+    el.startAudioCallButton.disabled = Boolean(call);
+    el.startVideoCallButton.disabled = Boolean(call);
+    el.hangupCallButton.disabled = !call;
+    el.callPanel.hidden = !(call?.localStream || call?.remoteStream);
+  }
+
+  function setCallStatus(text) {
+    el.callStatus.textContent = text;
+  }
+
+  function supportsWebRtc() {
+    return typeof RTCPeerConnection === "function";
+  }
+
+  function isRelayConnected() {
+    return state.relaySocket?.readyState === WebSocket.OPEN;
+  }
+
+  function isAddressedToMe(envelope) {
+    if (!envelope.to || envelope.to === "relay@localhost") {
+      return true;
+    }
+
+    return jidMatches(envelope.to, currentFromJid());
+  }
+
+  function jidMatches(left, right) {
+    const a = String(left || "").trim().toLowerCase();
+    const b = String(right || "").trim().toLowerCase();
+    return a === b || a.split("/")[0] === b.split("/")[0];
+  }
+
+  function jingleInfoText(info) {
+    if (info === "ringing") {
+      return t("call.ringing", "Ringing...");
+    }
+
+    if (info === "hold") {
+      return t("call.hold", "Call on hold");
+    }
+
+    if (info === "unhold" || info === "active") {
+      return t("call.connected", "Call connected");
+    }
+
+    return t("call.session_info", "Call status updated");
+  }
+
+  function redactJingleForLog(envelope) {
+    return {
+      ...envelope,
+      sdp: envelope.sdp ? `${envelope.sdp.length} bytes` : null
+    };
   }
 
   function addMessage(direction, text, status, from = null, attachment = null) {

@@ -12,8 +12,11 @@
   OOB message-link creation.
 - XEP-0384 OMEMO wire scaffolding for device lists, bundle requests and
   encrypted message wrappers.
-- XEP-0166/0167/0176 Jingle scaffolding for RTP session signaling and an
-  ICE-UDP transport placeholder.
+- XEP-0166/0167/0176/0320 Jingle call signaling for RTP descriptions,
+  ICE-UDP candidates, DTLS-SRTP fingerprints, `transport-info` updates and
+  RTP `session-info` call states.
+- Web client audio/video call controls with a local WebRTC bridge using
+  Jingle-shaped relay envelopes for offer, answer, ICE candidates and hangup.
 - `XmppStreamClient` helper methods for the new upload, OMEMO, MUC and Jingle
   protocol flows.
 - Real-server smoke MUC options for XEP-0045 service discovery, room discovery,
@@ -28,8 +31,8 @@
 
 - OMEMO cryptography, key trust, ratchet/session storage and encrypted payload
   handling are not implemented yet.
-- Voice/video media transport, WebRTC integration and ICE candidate exchange
-  are not implemented yet.
+- Voice/video interop against existing federated Jingle clients still needs
+  real-server smoke testing and richer device selection.
 - Web file upload currently stores files locally under the PHP public upload
   directory; browser-to-real-XMPP XEP-0363 wiring still needs UI integration.
 

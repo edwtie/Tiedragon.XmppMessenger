@@ -84,7 +84,7 @@ Planned after Alpha 1:
 - XEP-0045: Multi-User Chat
 - XEP-0363: HTTP File Upload
 - XEP-0384: OMEMO Encryption
-- XEP-0166/0167/0176: Jingle call signaling and ICE transport
+- XEP-0166/0167/0176/0320: Jingle call signaling, ICE transport and DTLS fingerprints
 
 ## Submit Checklist
 

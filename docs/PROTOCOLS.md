@@ -243,7 +243,14 @@ The demo also supports LngPdk `.lngpdk` packages through the independent
 | XEP-0166 | Jingle session signaling. |
 | XEP-0167 | Jingle RTP sessions for audio/video. |
 | XEP-0176 | Jingle ICE-UDP transport. |
+| XEP-0320 | DTLS-SRTP fingerprints for secure media setup. |
 | XEP-0177 | Jingle raw UDP transport. |
 | XEP-0343 | WebRTC data channels in Jingle. |
 
-XMPP/Jingle handles signaling. WebRTC handles audio/video media transport.
+Current core support covers Jingle `session-initiate`, `session-accept`,
+`session-terminate`, `transport-info`, RTP payload descriptions, ICE-UDP
+candidates, DTLS-SRTP fingerprints and RTP `session-info` states such as
+ringing, hold and mute. The web client also has a local relay call bridge that
+uses Jingle-shaped envelopes for offer/answer/candidate exchange and WebRTC for
+browser audio/video media. Real federated interop with existing Jingle clients
+still requires a server-backed smoke test.

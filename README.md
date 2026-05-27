@@ -45,7 +45,7 @@ Alpha 1 currently provides:
   presence, chat, service discovery, stream management, registration,
   receipts, carbons, archive query models and XEP-0301 RTT
 - protocol helpers for MUC room discovery/config/admin, HTTP file upload slots,
-  OMEMO wire stanzas and Jingle RTP signaling
+  OMEMO wire stanzas and Jingle RTP/ICE/DTLS signaling
 - local XMPP server with mandatory STARTTLS
 - real-server smoke tool for TLS, hostname validation, XEP-0077 and
   two-account chat plus XEP-0045 MUC service/room smoke
@@ -60,8 +60,8 @@ The longer-term project goal is a modern messenger with:
 - real-time text
 - group chat
 - file and image sharing
-- audio calling
-- video calling
+- browser-to-browser audio calling over WebRTC
+- browser-to-browser video calling over WebRTC
 
 ## Protocol Direction
 
@@ -88,8 +88,11 @@ Important XMPP extensions:
 - XEP-0166 - Jingle
 - XEP-0167 - Jingle RTP Sessions
 - XEP-0176 - Jingle ICE-UDP Transport
+- XEP-0320 - Use of DTLS-SRTP in Jingle Sessions
 
-Audio and video will use XMPP/Jingle for signaling and WebRTC for media transport.
+Audio and video use XMPP/Jingle-shaped signaling and WebRTC media transport.
+The web demo can place local relay calls today; full federation/interoperability
+against existing Jingle clients is still on the roadmap.
 
 ## Server Direction
 
@@ -107,7 +110,8 @@ Candidate server stack:
 - Beta: tester-ready messenger with RTT, group chat and file sharing
 - Release: stable messenger
 
-Calling and video are planned after the core messenger is stable.
+Calling now has a local browser demo. Interoperable Jingle calling against
+existing XMPP clients is the next hardening step.
 
 ## Current Code
 
@@ -161,8 +165,8 @@ The first XMPP model layer is `Tiedragon.XmppMessenger.Core.Xmpp`:
 
 The higher-level XEP helpers are protocol foundations, not finished product
 features yet. OMEMO still needs real key agreement, session storage and payload
-crypto. Audio/video still needs a WebRTC media bridge, ICE candidates and device
-UI.
+crypto. Audio/video now has Jingle RTP/ICE/DTLS signaling models and a browser
+WebRTC relay bridge, but still needs interop testing and richer device controls.
 
 The localization layer is the independent `Tiedragon.LngPdk` library:
 

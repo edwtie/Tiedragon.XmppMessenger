@@ -121,6 +121,9 @@ var tests = new (string Name, Action Test)[]
     ("XMPP HTTP file upload creates message attachment", XmppHttpFileUploadCreatesMessageAttachment),
     ("XMPP OMEMO serializes encrypted message and parses devices", XmppOmemoSerializesEncryptedMessageAndParsesDevices),
     ("XMPP Jingle serializes session initiate and parse", XmppJingleSerializesSessionInitiateAndParse),
+    ("XMPP Jingle serializes ICE candidates and DTLS fingerprints", XmppJingleSerializesIceCandidatesAndDtlsFingerprints),
+    ("XMPP Jingle serializes transport-info candidates", XmppJingleSerializesTransportInfoCandidates),
+    ("XMPP Jingle serializes session-info call states", XmppJingleSerializesSessionInfoCallStates),
     ("XMPP stream management state tracks counts", XmppStreamManagementStateTracksCounts),
     ("XMPP chat message parses stanza", XmppChatMessageParsesStanza),
     ("XMPP presence parses stanza", XmppPresenceParsesStanza),
@@ -3283,6 +3286,150 @@ static void XmppJingleSerializesSessionInitiateAndParse()
     Equal("session-initiate", session.Action);
     Equal(1, session.Contents.Count);
     Equal("audio", session.Contents[0].Name);
+}
+
+static void XmppJingleSerializesIceCandidatesAndDtlsFingerprints()
+{
+    var transport = new XmppJingleIceUdpTransport(
+        Ufrag: "8hhy",
+        Password: "asd88fgpdd777uzjYhagZg",
+        Candidates:
+        [
+            new XmppJingleIceCandidate(
+                "el0747fg11",
+                Component: 1,
+                Foundation: "1",
+                Generation: 0,
+                Ip: "192.0.2.3",
+                Network: 1,
+                Port: 45664,
+                Priority: 1694498815,
+                Protocol: "udp",
+                Type: "srflx",
+                RelatedAddress: "10.0.1.1",
+                RelatedPort: 8998)
+        ],
+        Fingerprints:
+        [
+            new XmppJingleDtlsFingerprint(
+                "sha-256",
+                "02:1A:CC:54:27:AB:EB:9C:53:3F:3E:4B:65:2E:7D:46:3F:54:42:CD:54:F1:7A:03:A2:7D:F9:B0:7F:46:19:B2",
+                "actpass")
+        ]);
+    var content = XmppJingle.CreateRtpContent(
+        "voice",
+        "audio",
+        [
+            new XmppJinglePayloadType(
+                111,
+                "opus",
+                48000,
+                2,
+                new Dictionary<string, string>
+                {
+                    ["minptime"] = "10",
+                    ["useinbandfec"] = "1"
+                })
+        ],
+        transport: transport);
+    var iq = XmppJingle.CreateSessionInitiate(
+        "jingle-ice-1",
+        XmppAddress.Parse("anna@example.org/phone"),
+        "sid-ice-1",
+        "initiator",
+        [content],
+        initiator: "edward@example.org/laptop");
+    var xml = iq.ToXml().ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("ufrag=\"8hhy\"", StringComparison.Ordinal));
+    True(xml.Contains("pwd=\"asd88fgpdd777uzjYhagZg\"", StringComparison.Ordinal));
+    True(xml.Contains("rel-addr=\"10.0.1.1\"", StringComparison.Ordinal));
+    True(xml.Contains("urn:xmpp:jingle:apps:dtls:0", StringComparison.Ordinal));
+    True(xml.Contains("useinbandfec", StringComparison.Ordinal));
+
+    True(XmppJingle.TryParse(iq, out var session));
+    Equal("edward@example.org/laptop", session!.Initiator);
+    var payloadTypes = XmppJingle.ParsePayloadTypes(session.Contents[0]);
+    Equal(1, payloadTypes.Count);
+    Equal("opus", payloadTypes[0].Name);
+    Equal("1", payloadTypes[0].Parameters!["useinbandfec"]);
+    True(XmppJingle.TryParseIceUdpTransport(session.Contents[0], out var parsedTransport));
+    Equal("8hhy", parsedTransport!.Ufrag);
+    Equal("asd88fgpdd777uzjYhagZg", parsedTransport.Password);
+    Equal(1, parsedTransport.Candidates!.Count);
+    Equal("srflx", parsedTransport.Candidates[0].Type);
+    Equal("10.0.1.1", parsedTransport.Candidates[0].RelatedAddress);
+    Equal(1, parsedTransport.Fingerprints!.Count);
+    Equal("actpass", parsedTransport.Fingerprints[0].Setup);
+}
+
+static void XmppJingleSerializesTransportInfoCandidates()
+{
+    var transport = new XmppJingleIceUdpTransport(
+        Ufrag: "newu",
+        Password: "newp",
+        Candidates:
+        [
+            new XmppJingleIceCandidate(
+                "m3110wc4nd",
+                Component: 1,
+                Foundation: "1",
+                Generation: 0,
+                Ip: "2001:db8::9:1",
+                Network: 0,
+                Port: 9001,
+                Priority: 21149780477,
+                Protocol: "udp",
+                Type: "host")
+        ]);
+    var iq = XmppJingle.CreateTransportInfo(
+        "transport-info-1",
+        XmppAddress.Parse("anna@example.org/phone"),
+        "sid-ice-1",
+        "initiator",
+        [XmppJingle.CreateTransportContent("voice", transport)],
+        initiator: "edward@example.org/laptop");
+    var xml = iq.ToXml().ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("action=\"transport-info\"", StringComparison.Ordinal));
+    True(xml.Contains("priority=\"21149780477\"", StringComparison.Ordinal));
+    True(XmppJingle.TryParse(iq, out var session));
+    Equal("transport-info", session!.Action);
+    True(XmppJingle.TryParseIceUdpTransport(session.Contents[0], out var parsedTransport));
+    Equal(21149780477, parsedTransport!.Candidates![0].Priority);
+}
+
+static void XmppJingleSerializesSessionInfoCallStates()
+{
+    var ringing = XmppJingle.CreateRinging(
+        "ring-1",
+        XmppAddress.Parse("edward@example.org/laptop"),
+        "sid-call-1",
+        initiator: "anna@example.org/phone");
+    True(XmppJingle.TryParse(ringing, out var ringingSession));
+    Equal("session-info", ringingSession!.Action);
+    Equal("ringing", ringingSession.SessionInfo!.Name.LocalName);
+
+    var mute = XmppJingle.CreateMute(
+        "mute-1",
+        XmppAddress.Parse("anna@example.org/phone"),
+        "sid-call-1",
+        creator: "initiator",
+        name: "audio");
+    True(XmppJingle.TryParse(mute, out var muteSession));
+    Equal("mute", muteSession!.SessionInfo!.Name.LocalName);
+    Equal("initiator", muteSession.SessionInfo.Attribute("creator")?.Value);
+    Equal("audio", muteSession.SessionInfo.Attribute("name")?.Value);
+
+    var terminate = XmppJingle.CreateSessionTerminate(
+        "term-1",
+        XmppAddress.Parse("anna@example.org/phone"),
+        "sid-call-1",
+        "decline",
+        "busy");
+    True(XmppJingle.TryParse(terminate, out var terminated));
+    Equal("decline", terminated!.Reason!.Condition);
+    Equal("busy", terminated.Reason.Text);
 }
 
 static T IsType<T>(object value)

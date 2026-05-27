@@ -117,7 +117,7 @@ while (true) {
             if (!isAllowedRttMessage($message)) {
                 @fwrite($socket, encodeWebSocketFrame(json_encode([
                     'type' => 'error',
-                    'message' => 'Only JSON RTT or message snapshots are accepted.'
+                    'message' => 'Only JSON RTT, message or Jingle call snapshots are accepted.'
                 ], JSON_UNESCAPED_SLASHES)));
                 continue;
             }
@@ -282,6 +282,38 @@ function isAllowedRttMessage(string $message): bool
             && strlen($xml) <= MAX_PAYLOAD_BYTES
             && str_contains($xml, '<rtt')
             && str_contains($xml, 'urn:xmpp:rtt:0');
+    }
+
+    if ($type === 'jingle') {
+        $action = $json['action'] ?? null;
+        $sid = $json['sid'] ?? null;
+        $allowedActions = [
+            'session-initiate',
+            'session-accept',
+            'session-info',
+            'transport-info',
+            'session-terminate',
+        ];
+
+        if (!is_string($action) || !in_array($action, $allowedActions, true)) {
+            return false;
+        }
+
+        if (!is_string($sid) || $sid === '' || strlen($sid) > 128) {
+            return false;
+        }
+
+        foreach (['from', 'to', 'xml', 'sdp', 'reasonText'] as $field) {
+            if (isset($json[$field]) && (!is_string($json[$field]) || strlen($json[$field]) > MAX_PAYLOAD_BYTES)) {
+                return false;
+            }
+        }
+
+        if (isset($json['candidate']) && !is_array($json['candidate'])) {
+            return false;
+        }
+
+        return true;
     }
 
     return false;
