@@ -90,6 +90,26 @@ function Publish-DotNetTools([string]$binRoot, [string]$runtime = "") {
     }
 }
 
+function Add-LinuxLaunchers([string]$binRoot) {
+    foreach ($item in $publishItems) {
+        $toolRoot = Join-Path $binRoot $item.Name
+        $dll = "Tiedragon.XmppMessenger.$($item.Name).dll"
+        if ($item.Name -eq "AiBotConsole") {
+            $dll = "Tiedragon.XmppMessenger.AiBotConsole.dll"
+        }
+        elseif ($item.Name -eq "WebSocketConsole") {
+            $dll = "Tiedragon.XmppMessenger.WebSocketConsole.dll"
+        }
+
+        $launcher = Join-Path $toolRoot "run.sh"
+        Set-Content -Encoding UTF8 -Path $launcher -Value @(
+            '#!/usr/bin/env sh',
+            'SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)',
+            "exec dotnet `"`$SCRIPT_DIR/$dll`" `"`$@`""
+        )
+    }
+}
+
 $publishItems = @(
     @{ Project = "tools\Tiedragon.XmppMessenger.FakeServer"; Name = "FakeServer" },
     @{ Project = "tools\Tiedragon.XmppMessenger.RealServerSmoke"; Name = "RealServerSmoke" },
@@ -111,6 +131,7 @@ if ($Target -eq "Linux" -or $Target -eq "All") {
     $linuxBinRoot = Join-Path $stage "linux\opt\teletyptel\bin"
     Copy-WebPayload $linuxWebRoot
     Publish-DotNetTools $linuxBinRoot "linux-x64"
+    Add-LinuxLaunchers $linuxBinRoot
 
     $systemdRoot = Join-Path $stage "linux\etc\systemd\system"
     New-Item -ItemType Directory -Force $systemdRoot | Out-Null
@@ -156,11 +177,15 @@ if ($Target -eq "Linux" -or $Target -eq "All") {
         "linux\var\www\teletyptel\rtt-websocket-server.php",
         "linux\var\www\teletyptel\schema.sql",
         "linux\opt\teletyptel\bin\FakeServer\Tiedragon.XmppMessenger.FakeServer",
+        "linux\opt\teletyptel\bin\FakeServer\run.sh",
         "linux\opt\teletyptel\bin\FakeServer\Tiedragon.XmppMessenger.Core.dll",
         "linux\opt\teletyptel\bin\RealServerSmoke\Tiedragon.XmppMessenger.RealServerSmoke",
+        "linux\opt\teletyptel\bin\RealServerSmoke\run.sh",
         "linux\opt\teletyptel\bin\RealServerSmoke\Tiedragon.XmppMessenger.Core.dll",
         "linux\opt\teletyptel\bin\AiBotConsole\Tiedragon.XmppMessenger.AiBotConsole",
+        "linux\opt\teletyptel\bin\AiBotConsole\run.sh",
         "linux\opt\teletyptel\bin\WebSocketConsole\Tiedragon.XmppMessenger.WebSocketConsole",
+        "linux\opt\teletyptel\bin\WebSocketConsole\run.sh",
         "linux\etc\systemd\system\teletyptel-rtt-relay.service"
     )
 }

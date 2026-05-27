@@ -26,6 +26,18 @@ Build both Windows/WAMP and Linux output:
 The Linux .NET tools are published for `linux-x64` as framework-dependent
 executables. The Linux target must have .NET runtime 10 installed.
 
+Each tool folder contains three useful entry points:
+
+```text
+Tiedragon.XmppMessenger.FakeServer          Linux apphost executable
+Tiedragon.XmppMessenger.FakeServer.dll      cross-platform .NET assembly
+run.sh                                      launcher that runs the dll with dotnet
+```
+
+The `.dll` files do work on Linux when started with `dotnet`. The apphost file
+without `.exe` is Linux-specific. The `.exe` files in the WAMP layout are for
+Windows and should not be used on Linux.
+
 ## Target Machine Requirements
 
 - Linux x64;
@@ -60,7 +72,12 @@ sudo cp -a linux/var/www/teletyptel/. /var/www/teletyptel/
 sudo cp -a linux/opt/teletyptel/bin/. /opt/teletyptel/bin/
 sudo cp linux/etc/systemd/system/teletyptel-rtt-relay.service /etc/systemd/system/
 sudo chown -R www-data:www-data /var/www/teletyptel
+sudo chmod +x /opt/teletyptel/bin/*/Tiedragon.XmppMessenger.* || true
 ```
+
+If executable permissions are lost while unpacking the zip, use `dotnet
+ToolName.dll` or `sh run.sh`. A zip created on Windows should not be trusted to
+preserve Linux execute bits.
 
 ## Database
 
@@ -141,10 +158,34 @@ Run the fake server:
   --account anna:secret
 ```
 
+Equivalent portable form:
+
+```bash
+dotnet /opt/teletyptel/bin/FakeServer/Tiedragon.XmppMessenger.FakeServer.dll \
+  --listen 127.0.0.1 \
+  --port 55222 \
+  --domain localhost \
+  --account edward:secret \
+  --account anna:secret
+```
+
 Then run the smoke tool with the printed certificate fingerprint:
 
 ```bash
 /opt/teletyptel/bin/RealServerSmoke/Tiedragon.XmppMessenger.RealServerSmoke \
+  --host 127.0.0.1 \
+  --port 55222 \
+  --account1 edward@localhost/desktop \
+  --password1 secret \
+  --account2 anna@localhost/desktop \
+  --password2 secret \
+  --cert-sha256 <printed fingerprint>
+```
+
+Equivalent portable form:
+
+```bash
+dotnet /opt/teletyptel/bin/RealServerSmoke/Tiedragon.XmppMessenger.RealServerSmoke.dll \
   --host 127.0.0.1 \
   --port 55222 \
   --account1 edward@localhost/desktop \
