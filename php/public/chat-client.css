@@ -209,11 +209,49 @@ textarea {
 }
 
 .chat-panel {
+  position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   min-width: 0;
   min-height: 0;
   background: #0f1724;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(15, 23, 36, .88);
+  color: #fff;
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay div {
+  display: grid;
+  gap: 6px;
+  max-width: 360px;
+  border: 1px solid #6aa2ff;
+  border-radius: var(--radius);
+  background: #132034;
+  padding: 18px 22px;
+  text-align: center;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .38);
+}
+
+.drop-overlay strong {
+  font-size: 20px;
+}
+
+.drop-overlay span {
+  color: #dbeafe;
 }
 
 .app-tabs {
@@ -325,11 +363,36 @@ textarea {
   background: rgba(79, 140, 255, .2);
 }
 
+.attachment-card.photo {
+  align-items: stretch;
+  padding: 6px;
+}
+
+.attachment-card.document .attachment-icon {
+  background: #2563eb;
+}
+
+.attachment-card.binary .attachment-icon {
+  background: #7c2d12;
+}
+
+.attachment-card.file .attachment-icon {
+  background: #475569;
+}
+
+.attachment-preview {
+  width: 86px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #0b1220;
+}
+
 .attachment-icon {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 34px;
+  width: 48px;
+  height: 38px;
   border-radius: 6px;
   background: var(--accent-strong);
   color: #fff;
@@ -641,6 +704,19 @@ body[data-theme="light"] .composer,
 body[data-theme="light"] .remote-draft,
 body[data-theme="light"] .app-tabs {
   background: #ffffff;
+}
+
+body[data-theme="light"] .drop-overlay {
+  background: rgba(238, 242, 247, .88);
+  color: #0f172a;
+}
+
+body[data-theme="light"] .drop-overlay div {
+  background: #ffffff;
+}
+
+body[data-theme="light"] .drop-overlay span {
+  color: #334155;
 }
 
 body[data-theme="light"] .provider-card {

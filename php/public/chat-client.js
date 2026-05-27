@@ -93,6 +93,7 @@
     activeConversationMeta: byId("activeConversationMeta"),
     relayModeButton: byId("relayModeButton"),
     xmppModeButton: byId("xmppModeButton"),
+    dropOverlay: byId("dropOverlay"),
     messageTimeline: byId("messageTimeline"),
     tabPanel: byId("tabPanel"),
     tabPanelTitle: byId("tabPanelTitle"),
@@ -151,7 +152,11 @@
     el.closeTabPanelButton.addEventListener("click", () => activateTab("chat"));
     el.resetRttButton.addEventListener("click", sendRttReset);
     el.uploadFileButton.addEventListener("click", () => el.fileInput.click());
-    el.fileInput.addEventListener("change", uploadSelectedFile);
+    el.fileInput.addEventListener("change", uploadSelectedFiles);
+    document.addEventListener("dragenter", handleDragEnter);
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("dragleave", handleDragLeave);
+    document.addEventListener("drop", handleDrop);
     el.composerForm.addEventListener("submit", sendComposerMessage);
     el.messageInput.addEventListener("input", sendRttEdit);
     el.messageInput.addEventListener("keydown", handleComposerKeydown);
@@ -1030,8 +1035,9 @@
   }
 
   function createAttachmentElement(attachment) {
+    const kind = attachment.kind || classifyAttachment(attachment);
     const wrapper = document.createElement("a");
-    wrapper.className = "attachment-card";
+    wrapper.className = `attachment-card ${kind}`;
     wrapper.href = attachment.url;
     wrapper.target = "_blank";
     wrapper.rel = "noopener";
@@ -1039,31 +1045,111 @@
 
     const icon = document.createElement("span");
     icon.className = "attachment-icon";
-    icon.textContent = attachment.type?.startsWith("image/") ? "IMG" : "FILE";
+    icon.textContent = attachmentKindLabel(kind);
 
     const text = document.createElement("span");
     text.className = "attachment-text";
     const name = document.createElement("strong");
     name.textContent = attachment.name || "download";
     const meta = document.createElement("small");
-    meta.textContent = [formatBytes(attachment.size), attachment.type].filter(Boolean).join(" - ");
+    meta.textContent = [attachmentKindText(kind), formatBytes(attachment.size), attachment.type]
+      .filter(Boolean)
+      .join(" - ");
     text.append(name, meta);
 
-    wrapper.append(icon, text);
+    if (kind === "photo") {
+      const preview = document.createElement("img");
+      preview.className = "attachment-preview";
+      preview.src = attachment.url;
+      preview.alt = attachment.name || t("upload.photo", "Photo");
+      preview.loading = "lazy";
+      wrapper.append(preview, text);
+    } else {
+      wrapper.append(icon, text);
+    }
+
     return wrapper;
   }
 
-  async function uploadSelectedFile() {
-    const file = el.fileInput.files?.[0];
+  function classifyAttachment(attachment) {
+    const type = String(attachment.type || "").toLowerCase();
+    const name = String(attachment.name || "").toLowerCase();
+    const extension = name.includes(".") ? name.split(".").pop() : "";
+
+    if (type.startsWith("image/")) {
+      return "photo";
+    }
+
+    if (
+      type.startsWith("text/") ||
+      type.includes("pdf") ||
+      type.includes("word") ||
+      type.includes("spreadsheet") ||
+      type.includes("presentation") ||
+      type.includes("opendocument") ||
+      ["pdf", "txt", "md", "rtf", "csv", "doc", "docx", "odt", "xls", "xlsx", "ods", "ppt", "pptx", "odp"].includes(extension)
+    ) {
+      return "document";
+    }
+
+    if (
+      type === "application/octet-stream" ||
+      type.includes("zip") ||
+      type.includes("compressed") ||
+      ["bin", "exe", "dll", "msi", "zip", "7z", "rar", "tar", "gz", "tgz", "deb", "rpm", "apk", "jar"].includes(extension)
+    ) {
+      return "binary";
+    }
+
+    return "file";
+  }
+
+  function attachmentKindLabel(kind) {
+    return kind === "photo" ? "PHOTO" : kind === "document" ? "DOC" : kind === "binary" ? "BIN" : "FILE";
+  }
+
+  function attachmentKindText(kind) {
+    if (kind === "photo") {
+      return t("upload.photo", "Photo");
+    }
+
+    if (kind === "document") {
+      return t("upload.document", "Document");
+    }
+
+    if (kind === "binary") {
+      return t("upload.binary", "Binary file");
+    }
+
+    return t("upload.file", "File");
+  }
+
+  async function uploadSelectedFiles() {
+    const files = Array.from(el.fileInput.files ?? []);
     el.fileInput.value = "";
-    if (!file) {
+    await uploadFiles(files);
+  }
+
+  async function uploadFiles(files) {
+    const uploadable = files.filter((file) => file instanceof File);
+    if (uploadable.length === 0) {
       return;
     }
 
     el.uploadFileButton.disabled = true;
     el.uploadFileButton.textContent = t("button.uploading", "Uploading...");
-    appendDebug("upload", `${file.name} (${file.size} bytes)`);
+    try {
+      for (const file of uploadable) {
+        await uploadOneFile(file);
+      }
+    } finally {
+      el.uploadFileButton.disabled = false;
+      el.uploadFileButton.textContent = t("button.upload_file", "Upload file");
+    }
+  }
 
+  async function uploadOneFile(file) {
+    appendDebug("upload", `${file.name} (${file.size} bytes)`);
     try {
       const data = new FormData();
       data.append("file", file);
@@ -1080,10 +1166,54 @@
     } catch (error) {
       appendDebug("upload-error", error.message);
       addMessage("self", `${t("upload.failed", "Upload failed")}: ${file.name}`, "error");
-    } finally {
-      el.uploadFileButton.disabled = false;
-      el.uploadFileButton.textContent = t("button.upload_file", "Upload file");
     }
+  }
+
+  function handleDragEnter(event) {
+    if (!eventHasFiles(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    showDropOverlay(true);
+  }
+
+  function handleDragOver(event) {
+    if (!eventHasFiles(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    showDropOverlay(true);
+  }
+
+  function handleDragLeave(event) {
+    if (event.relatedTarget && document.body.contains(event.relatedTarget)) {
+      return;
+    }
+
+    showDropOverlay(false);
+  }
+
+  function handleDrop(event) {
+    if (!eventHasFiles(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    showDropOverlay(false);
+    activateTab("chat");
+    uploadFiles(Array.from(event.dataTransfer.files ?? []));
+  }
+
+  function eventHasFiles(event) {
+    return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+  }
+
+  function showDropOverlay(show) {
+    el.dropOverlay.hidden = !show;
+    el.dropOverlay.classList.toggle("visible", show);
   }
 
   function sendFileMessage(file) {
@@ -1092,7 +1222,8 @@
       name: file.name,
       url: file.url,
       size: file.size,
-      type: file.type
+      type: file.type,
+      kind: classifyAttachment(file)
     };
 
     if (state.mode === "xmpp" && state.xmppSocket?.readyState === WebSocket.OPEN) {
