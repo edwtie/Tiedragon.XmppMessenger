@@ -157,10 +157,11 @@ Openfire can be used as a second smoke target after Prosody:
 
 ## Local Fake Server
 
-`Tiedragon.XmppMessenger.FakeServer` is a local no-TLS protocol harness built
+`Tiedragon.XmppMessenger.FakeServer` is a local STARTTLS protocol harness built
 from the fake-server test flow. It is not a production XMPP server and must not
 be exposed to a network. Use it for fast repeatable client tests without
-creating public server accounts.
+creating public server accounts. TLS is mandatory; the server advertises
+`<starttls><required/></starttls>` before SASL.
 
 Start it with two preloaded accounts:
 
@@ -173,7 +174,7 @@ dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
   --account anna:secret
 ```
 
-Run the no-TLS smoke against it:
+Run the TLS smoke against it:
 
 ```powershell
 dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
@@ -184,7 +185,7 @@ dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
   --account2 anna@localhost/desktop `
   --password2 secret `
   --timeout-seconds 20 `
-  --no-tls
+  --cert-sha256 <fingerprint printed by the fake server>
 ```
 
 Add `--register` to the smoke command when you want the tool to create the

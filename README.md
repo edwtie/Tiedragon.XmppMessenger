@@ -91,8 +91,10 @@ dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
   --account anna:secret
 ```
 
-The fake server supports no-TLS local testing for XEP-0077, SASL PLAIN,
-resource binding, empty roster and direct one-to-one chat relay.
+The fake server requires STARTTLS and supports XEP-0077, SASL PLAIN,
+resource binding, empty roster and direct one-to-one chat relay. For local
+self-signed certificates, pass the printed SHA-256 fingerprint to the smoke
+tool with `--cert-sha256`.
 
 ```text
 src/Tiedragon.XmppMessenger.Core

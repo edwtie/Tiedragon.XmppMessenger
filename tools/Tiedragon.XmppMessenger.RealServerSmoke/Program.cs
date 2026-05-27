@@ -1,6 +1,8 @@
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -18,25 +20,18 @@ using var cancellation = new CancellationTokenSource(options.Timeout);
 
 try
 {
-    if (options.NoTls)
+    Console.WriteLine($"TLS smoke: {options.Host}:{options.Port} as {options.Account1.Bare}");
+    await VerifyTlsCertificateAsync(options, cancellation.Token);
+    Console.WriteLine("PASS TLS certificate accepted for configured host.");
+
+    if (!string.IsNullOrWhiteSpace(options.BadHost))
     {
-        Console.WriteLine($"SKIP TLS smoke: --no-tls for local harness {options.Host}:{options.Port}.");
+        await VerifyHostnameRejectionAsync(options, cancellation.Token);
+        Console.WriteLine("PASS Hostname mismatch rejected.");
     }
     else
     {
-        Console.WriteLine($"TLS smoke: {options.Host}:{options.Port} as {options.Account1.Bare}");
-        await VerifyTlsCertificateAsync(options, cancellation.Token);
-        Console.WriteLine("PASS TLS certificate accepted for configured host.");
-
-        if (!string.IsNullOrWhiteSpace(options.BadHost))
-        {
-            await VerifyHostnameRejectionAsync(options, cancellation.Token);
-            Console.WriteLine("PASS Hostname mismatch rejected.");
-        }
-        else
-        {
-            Console.WriteLine("SKIP Hostname mismatch: pass --bad-host to run the negative certificate test.");
-        }
+        Console.WriteLine("SKIP Hostname mismatch: pass --bad-host to run the negative certificate test.");
     }
 
     if (options.Register)
@@ -127,7 +122,11 @@ static async Task VerifyHostnameRejectionAsync(SmokeOptions options, Cancellatio
 {
     try
     {
-        await using var stream = await StartTlsAsync(options, options.BadHost!, cancellationToken);
+        await using var stream = await StartTlsAsync(
+            options,
+            options.BadHost!,
+            cancellationToken,
+            allowCertificatePin: false);
         throw new InvalidOperationException(
             $"TLS unexpectedly accepted the certificate for wrong host '{options.BadHost}'.");
     }
@@ -142,7 +141,8 @@ static async Task VerifyHostnameRejectionAsync(SmokeOptions options, Cancellatio
 static async Task<SslStream> StartTlsAsync(
     SmokeOptions options,
     string validationHost,
-    CancellationToken cancellationToken)
+    CancellationToken cancellationToken,
+    bool allowCertificatePin = true)
 {
     var client = new TcpClient();
     await client.ConnectAsync(options.Host, options.Port, cancellationToken);
@@ -173,12 +173,9 @@ static async Task<SslStream> StartTlsAsync(
     }
 
     var sslStream = new SslStream(networkStream, leaveInnerStreamOpen: false);
-    var authOptions = new SslClientAuthenticationOptions
-    {
-        TargetHost = validationHost
-    };
-
-    await sslStream.AuthenticateAsClientAsync(authOptions, cancellationToken);
+    await sslStream.AuthenticateAsClientAsync(
+        CreateTlsClientOptions(options, validationHost, allowCertificatePin),
+        cancellationToken);
     return sslStream;
 }
 
@@ -187,24 +184,7 @@ static async Task<Stream> OpenRegistrationStreamAsync(
     string domain,
     CancellationToken cancellationToken)
 {
-    return options.NoTls
-        ? await StartNoTlsAndOpenRegistrationStreamAsync(options, domain, cancellationToken)
-        : await StartTlsAndOpenRegistrationStreamAsync(options, domain, cancellationToken);
-}
-
-static async Task<Stream> StartNoTlsAndOpenRegistrationStreamAsync(
-    SmokeOptions options,
-    string domain,
-    CancellationToken cancellationToken)
-{
-    var client = new TcpClient();
-    await client.ConnectAsync(options.Host, options.Port, cancellationToken);
-    var networkStream = client.GetStream();
-    var buffer = new byte[16384];
-
-    await WriteTextAsync(networkStream, CreateOpenStreamWithoutFrom(domain), cancellationToken);
-    await ReadUntilAsync(networkStream, buffer, "</stream:features>", cancellationToken);
-    return networkStream;
+    return await StartTlsAndOpenRegistrationStreamAsync(options, domain, cancellationToken);
 }
 
 static async Task<SslStream> StartTlsAndOpenRegistrationStreamAsync(
@@ -237,9 +217,7 @@ static async Task<SslStream> StartTlsAndOpenRegistrationStreamAsync(
     }
 
     var sslStream = new SslStream(networkStream, leaveInnerStreamOpen: false);
-    await sslStream.AuthenticateAsClientAsync(
-        new SslClientAuthenticationOptions { TargetHost = options.Host },
-        cancellationToken);
+    await sslStream.AuthenticateAsClientAsync(CreateTlsClientOptions(options, options.Host), cancellationToken);
     await WriteTextAsync(sslStream, CreateOpenStreamWithoutFrom(domain), cancellationToken);
     await ReadUntilAsync(sslStream, buffer, "</stream:features>", cancellationToken);
     return sslStream;
@@ -252,12 +230,15 @@ static async Task VerifyTwoAccountChatAsync(SmokeOptions options, CancellationTo
         XmppStreamOptions.Default.Resource,
         options.Timeout,
         XmppStreamOptions.Default.KeepAliveInterval);
+    var tlsUpgrader = new SmokeTlsStreamUpgrader(options.CertificateSha256);
     await using var sender = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account1, options.Host, options.Port, requireTls: !options.NoTls),
-        clientOptions);
+        new XmppConnectionSettings(options.Account1, options.Host, options.Port, requireTls: true),
+        clientOptions,
+        tlsUpgrader);
     await using var receiver = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account2, options.Host, options.Port, requireTls: !options.NoTls),
-        clientOptions);
+        new XmppConnectionSettings(options.Account2, options.Host, options.Port, requireTls: true),
+        clientOptions,
+        tlsUpgrader);
 
     await sender.LoginAsync(options.Account1.LocalPart ?? options.Account1.Bare, options.Password1, cancellationToken: cancellationToken);
     await receiver.LoginAsync(options.Account2.LocalPart ?? options.Account2.Bare, options.Password2!, cancellationToken: cancellationToken);
@@ -428,6 +409,99 @@ static string CreateOpenStreamWithoutFrom(string domain)
         + " xmlns:stream=\"http://etherx.jabber.org/streams\">";
 }
 
+static SslClientAuthenticationOptions CreateTlsClientOptions(
+    SmokeOptions options,
+    string validationHost,
+    bool allowCertificatePin = true)
+{
+    var authOptions = new SslClientAuthenticationOptions
+    {
+        TargetHost = validationHost
+    };
+
+    if (allowCertificatePin && !string.IsNullOrWhiteSpace(options.CertificateSha256))
+    {
+        var expected = NormalizeHex(options.CertificateSha256);
+        authOptions.RemoteCertificateValidationCallback = (_, certificate, _, errors) =>
+        {
+            if (errors == SslPolicyErrors.None)
+            {
+                return true;
+            }
+
+            if (certificate is null)
+            {
+                return false;
+            }
+
+            using var certificate2 = certificate as X509Certificate2 ?? new X509Certificate2(certificate);
+            var actual = Convert.ToHexString(certificate2.GetCertHash(HashAlgorithmName.SHA256));
+            return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        };
+    }
+
+    return authOptions;
+}
+
+static string NormalizeHex(string value)
+{
+    return value
+        .Replace(":", string.Empty, StringComparison.Ordinal)
+        .Replace("-", string.Empty, StringComparison.Ordinal)
+        .Replace(" ", string.Empty, StringComparison.Ordinal)
+        .ToUpperInvariant();
+}
+
+sealed class SmokeTlsStreamUpgrader(string? certificateSha256) : IXmppTlsStreamUpgrader
+{
+    public async Task<Stream> UpgradeAsync(Stream stream, string targetHost, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        var sslStream = new SslStream(stream, leaveInnerStreamOpen: false);
+        try
+        {
+            var options = new SslClientAuthenticationOptions
+            {
+                TargetHost = targetHost
+            };
+
+            if (!string.IsNullOrWhiteSpace(certificateSha256))
+            {
+                var expected = certificateSha256
+                    .Replace(":", string.Empty, StringComparison.Ordinal)
+                    .Replace("-", string.Empty, StringComparison.Ordinal)
+                    .Replace(" ", string.Empty, StringComparison.Ordinal)
+                    .ToUpperInvariant();
+                options.RemoteCertificateValidationCallback = (_, certificate, _, errors) =>
+                {
+                    if (errors == SslPolicyErrors.None)
+                    {
+                        return true;
+                    }
+
+                    if (certificate is null)
+                    {
+                        return false;
+                    }
+
+                    using var certificate2 = certificate as X509Certificate2 ?? new X509Certificate2(certificate);
+                    var actual = Convert.ToHexString(certificate2.GetCertHash(HashAlgorithmName.SHA256));
+                    return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+                };
+            }
+
+            await sslStream.AuthenticateAsClientAsync(options, cancellationToken);
+            return sslStream;
+        }
+        catch
+        {
+            await sslStream.DisposeAsync();
+            throw;
+        }
+    }
+}
+
 sealed record SmokeOptions(
     string Host,
     int Port,
@@ -437,7 +511,7 @@ sealed record SmokeOptions(
     string? Password2,
     string? BadHost,
     bool Register,
-    bool NoTls,
+    string? CertificateSha256,
     TimeSpan Timeout)
 {
     public static SmokeOptions? Parse(string[] args)
@@ -453,8 +527,7 @@ sealed record SmokeOptions(
             }
 
             var name = key[2..];
-            if (string.Equals(name, "register", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(name, "no-tls", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(name, "register", StringComparison.OrdinalIgnoreCase))
             {
                 flags.Add(name);
                 continue;
@@ -488,6 +561,7 @@ sealed record SmokeOptions(
             : account1;
         values.TryGetValue("password2", out var password2);
         values.TryGetValue("bad-host", out var badHost);
+        values.TryGetValue("cert-sha256", out var certSha256);
 
         return new SmokeOptions(
             host,
@@ -498,7 +572,7 @@ sealed record SmokeOptions(
             password2,
             badHost,
             flags.Contains("register"),
-            flags.Contains("no-tls"),
+            certSha256,
             timeout);
     }
 
@@ -519,7 +593,7 @@ sealed record SmokeOptions(
               --port 5222
               --timeout-seconds 30
               --register
-              --no-tls
+              --cert-sha256 <pinned certificate fingerprint for local self-signed smoke>
             """);
     }
 }

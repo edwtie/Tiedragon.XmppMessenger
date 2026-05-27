@@ -1,6 +1,10 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -14,7 +18,8 @@ if (options is null)
     return;
 }
 
-var state = new FakeXmppServerState(options.Domain);
+using var certificate = options.LoadOrCreateCertificate();
+var state = new FakeXmppServerState(options.Domain, certificate);
 foreach (var account in options.Accounts)
 {
     state.Accounts[account.Username] = account.Password;
@@ -30,7 +35,8 @@ Console.CancelKeyPress += (_, eventArgs) =>
 var listener = new TcpListener(IPAddress.Parse(options.ListenAddress), options.Port);
 listener.Start();
 Console.WriteLine($"Fake XMPP server listening on {options.ListenAddress}:{options.Port} for domain {options.Domain}");
-Console.WriteLine("Features: XEP-0077, SASL PLAIN, resource bind, empty roster, direct chat relay");
+Console.WriteLine("Features: STARTTLS required, XEP-0077, SASL PLAIN, resource bind, empty roster, direct chat relay");
+Console.WriteLine($"Certificate SHA-256: {Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256)).ToLowerInvariant()}");
 
 try
 {
@@ -76,11 +82,13 @@ static async Task HandleClientAsync(
     }
 }
 
-sealed class FakeXmppServerState(string domain)
+sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
 {
     private readonly ConcurrentDictionary<string, FakeXmppSession> _sessionsByBareJid = new(StringComparer.OrdinalIgnoreCase);
 
     public string Domain { get; } = domain;
+
+    public X509Certificate2 Certificate { get; } = certificate;
 
     public ConcurrentDictionary<string, string> Accounts { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -123,9 +131,10 @@ sealed class FakeXmppServerState(string domain)
 
 sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
 {
-    private readonly Stream _stream = client.GetStream();
+    private Stream _stream = client.GetStream();
     private readonly StringBuilder _buffer = new();
     private string? _username;
+    private bool _tlsActive;
 
     public string? BareJid => _username is null ? null : $"{_username}@{state.Domain}";
 
@@ -177,6 +186,9 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
 
         switch (element.Name.LocalName)
         {
+            case "starttls":
+                await HandleStartTlsAsync(cancellationToken);
+                break;
             case "auth":
                 await HandleAuthAsync(element, cancellationToken);
                 break;
@@ -191,8 +203,36 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
         }
     }
 
+    private async Task HandleStartTlsAsync(CancellationToken cancellationToken)
+    {
+        if (_tlsActive)
+        {
+            await WriteAsync("<failure xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"/>", cancellationToken);
+            return;
+        }
+
+        await WriteAsync("<proceed xmlns=\"urn:ietf:params:xml:ns:xmpp-tls\"/>", cancellationToken);
+        var sslStream = new SslStream(_stream, leaveInnerStreamOpen: false);
+        await sslStream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+        {
+            ServerCertificate = state.Certificate,
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+            ClientCertificateRequired = false
+        }, cancellationToken);
+
+        _stream = sslStream;
+        _buffer.Clear();
+        _tlsActive = true;
+    }
+
     private async Task HandleAuthAsync(XElement element, CancellationToken cancellationToken)
     {
+        if (!_tlsActive)
+        {
+            await WriteAsync("<failure xmlns=\"urn:ietf:params:xml:ns:xmpp-sasl\"><encryption-required/></failure>", cancellationToken);
+            return;
+        }
+
         var mechanism = (string?)element.Attribute("mechanism");
         if (!string.Equals(mechanism, "PLAIN", StringComparison.OrdinalIgnoreCase))
         {
@@ -221,6 +261,16 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
 
     private async Task HandleIqAsync(XElement element, CancellationToken cancellationToken)
     {
+        if (!_tlsActive)
+        {
+            await WriteAsync($"""
+                <iq xmlns="jabber:client" type="error" id="{Escape((string?)element.Attribute("id"))}">
+                  <error type="auth"><not-authorized xmlns="urn:ietf:params:xml:ns:xmpp-stanzas"/></error>
+                </iq>
+                """, cancellationToken);
+            return;
+        }
+
         var id = (string?)element.Attribute("id") ?? string.Empty;
         var type = (string?)element.Attribute("type") ?? string.Empty;
         var payload = element.Elements().SingleOrDefault();
@@ -330,6 +380,11 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
 
     private async Task HandleMessageAsync(XElement element, CancellationToken cancellationToken)
     {
+        if (!_tlsActive)
+        {
+            return;
+        }
+
         var to = (string?)element.Attribute("to");
         if (string.IsNullOrWhiteSpace(to))
         {
@@ -345,9 +400,8 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
 
     private async Task SendOpenAndFeaturesAsync(CancellationToken cancellationToken)
     {
-        await WriteAsync($"""
-            <stream:stream xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" from="{Escape(state.Domain)}" version="1.0">
-            <stream:features>
+        var features = _tlsActive
+            ? """
               <register xmlns="http://jabber.org/features/iq-register"/>
               <mechanisms xmlns="urn:ietf:params:xml:ns:xmpp-sasl">
                 <mechanism>PLAIN</mechanism>
@@ -355,6 +409,17 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
               <bind xmlns="urn:ietf:params:xml:ns:xmpp-bind">
                 <required/>
               </bind>
+            """
+            : """
+              <starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls">
+                <required/>
+              </starttls>
+            """;
+
+        await WriteAsync($"""
+            <stream:stream xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" from="{Escape(state.Domain)}" version="1.0">
+            <stream:features>
+            {features}
             </stream:features>
             """, cancellationToken);
     }
@@ -607,8 +672,23 @@ sealed record FakeServerOptions(
     string ListenAddress,
     int Port,
     string Domain,
+    string? CertificatePath,
+    string? CertificatePassword,
     IReadOnlyList<FakeAccount> Accounts)
 {
+    public X509Certificate2 LoadOrCreateCertificate()
+    {
+        if (!string.IsNullOrWhiteSpace(CertificatePath))
+        {
+            return X509CertificateLoader.LoadPkcs12FromFile(
+                CertificatePath,
+                CertificatePassword,
+                X509KeyStorageFlags.Exportable);
+        }
+
+        return CreateEphemeralCertificate(Domain);
+    }
+
     public static FakeServerOptions? Parse(string[] args)
     {
         var values = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -633,6 +713,8 @@ sealed record FakeServerOptions(
         var listen = ValueOrDefault(values, "listen", "127.0.0.1");
         var domain = ValueOrDefault(values, "domain", "localhost");
         var portText = ValueOrDefault(values, "port", "5222");
+        values.TryGetValue("cert-path", out var certPaths);
+        values.TryGetValue("cert-password", out var certPasswords);
         if (!int.TryParse(portText, out var port))
         {
             return null;
@@ -641,7 +723,13 @@ sealed record FakeServerOptions(
         var accounts = values.TryGetValue("account", out var accountValues)
             ? accountValues.Select(ParseAccount).Where(account => account is not null).Cast<FakeAccount>().ToArray()
             : Array.Empty<FakeAccount>();
-        return new FakeServerOptions(listen, port, domain, accounts);
+        return new FakeServerOptions(
+            listen,
+            port,
+            domain,
+            certPaths?.LastOrDefault(),
+            certPasswords?.LastOrDefault(),
+            accounts);
     }
 
     public static void PrintUsage()
@@ -652,11 +740,14 @@ sealed record FakeServerOptions(
                 --listen 127.0.0.1 \
                 --port 5222 \
                 --domain localhost \
+                --cert-path .tmp/fake-xmpp-localhost.pfx \
+                --cert-password changeit \
                 --account edward:secret \
                 --account anna:secret
 
             Accounts can also be created with XEP-0077 while the server runs.
-            Use clients with TLS disabled; this fake server is a local protocol harness.
+            STARTTLS is always required. Without --cert-path, an ephemeral self-signed
+            certificate is generated and its SHA-256 fingerprint is printed.
             """);
     }
 
@@ -674,5 +765,43 @@ sealed record FakeServerOptions(
         }
 
         return new FakeAccount(value[..separator], value[(separator + 1)..]);
+    }
+
+    private static X509Certificate2 CreateEphemeralCertificate(string domain)
+    {
+        using var key = RSA.Create(2048);
+        var subject = new X500DistinguishedName($"CN={domain}");
+        var request = new CertificateRequest(
+            subject,
+            key,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: true));
+        request.CertificateExtensions.Add(
+            new X509EnhancedKeyUsageExtension(
+                [new Oid("1.3.6.1.5.5.7.3.1")],
+                critical: false));
+
+        var san = new SubjectAlternativeNameBuilder();
+        san.AddDnsName(domain);
+        if (IPAddress.TryParse(domain, out var ipAddress))
+        {
+            san.AddIpAddress(ipAddress);
+        }
+
+        if (!string.Equals(domain, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            san.AddDnsName("localhost");
+        }
+
+        san.AddIpAddress(IPAddress.Loopback);
+        request.CertificateExtensions.Add(san.Build());
+
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddDays(7));
+        return X509CertificateLoader.LoadPkcs12(
+            certificate.Export(X509ContentType.Pkcs12),
+            password: null,
+            X509KeyStorageFlags.Exportable);
     }
 }
