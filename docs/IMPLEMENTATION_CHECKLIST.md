@@ -55,7 +55,7 @@ item is implemented, tested and documented.
 - [x] Typed protocol exceptions.
 - [x] Full stream error parser.
 - [x] Full stanza error parser.
-- [ ] Real server TLS certificate smoke test with `Tiedragon.XmppMessenger.RealServerSmoke`.
+- [x] Real server TLS certificate smoke test with `Tiedragon.XmppMessenger.RealServerSmoke`.
 
 ## RFC 6121 - IM And Presence
 
@@ -87,7 +87,7 @@ item is implemented, tested and documented.
 - [x] STARTTLS downgrade protection.
 - [x] `SslStream` client authentication path.
 - [x] Certificate validation policy documentation.
-- [ ] Hostname validation smoke test with `Tiedragon.XmppMessenger.RealServerSmoke --bad-host`.
+- [x] Hostname validation smoke test with `Tiedragon.XmppMessenger.RealServerSmoke --bad-host`.
 - [x] Minimum TLS version policy.
 
 ## RFC 7622 - XMPP Address Format

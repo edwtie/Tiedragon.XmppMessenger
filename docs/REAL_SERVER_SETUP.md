@@ -104,6 +104,24 @@ The TLS smoke test must prove that `SslStream` validates the certificate name
 against the configured XMPP host. A certificate accepted for one host must not
 silently pass for another host.
 
+Verified public TLS smoke target:
+
+```powershell
+dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
+  --host uuxo.net `
+  --port 5222 `
+  --account1 smoke@uuxo.net/teletyptel `
+  --password1 dummy `
+  --bad-host wrong.example.org `
+  --timeout-seconds 20
+```
+
+Result on 2026-05-27:
+
+- `PASS TLS certificate accepted for configured host.`
+- `PASS Hostname mismatch rejected.`
+- two-account chat skipped because no real accounts were supplied.
+
 ## Openfire Direction
 
 Openfire can be used as a second smoke target after Prosody:
