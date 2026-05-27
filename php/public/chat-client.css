@@ -327,6 +327,16 @@ textarea {
   vertical-align: middle;
 }
 
+.smiley-image {
+  display: inline-block;
+  width: auto;
+  max-width: 28px;
+  height: 22px;
+  margin: 0 2px;
+  object-fit: contain;
+  vertical-align: text-bottom;
+}
+
 .remote-draft {
   border-top: 1px solid #314159;
   background: #18253a;

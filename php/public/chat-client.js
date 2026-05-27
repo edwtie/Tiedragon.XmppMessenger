@@ -48,6 +48,7 @@
   const smileIndex = smiles
     .flatMap((smiley) => smiley.codes.map((code) => ({ code, smiley })))
     .sort((a, b) => b.code.length - a.code.length || a.code.localeCompare(b.code));
+  const smileyBasePath = "smileys/";
 
   const state = {
     mode: "relay",
@@ -712,13 +713,26 @@
       if (token.kind === "text") {
         container.appendChild(document.createTextNode(token.text));
       } else {
-        const span = document.createElement("span");
-        span.className = "smiley";
-        span.title = `${token.smiley.name} (${token.smiley.fileName})`;
-        span.textContent = token.text;
-        container.appendChild(span);
+        container.appendChild(createSmileyImage(token));
       }
     }
+  }
+
+  function createSmileyImage(token) {
+    const fallback = document.createElement("span");
+    fallback.className = "smiley";
+    fallback.title = `${token.smiley.name} (${token.smiley.fileName})`;
+    fallback.textContent = token.text;
+
+    const image = document.createElement("img");
+    image.className = "smiley-image";
+    image.src = smileyBasePath + encodeURIComponent(token.smiley.fileName);
+    image.alt = token.text;
+    image.title = `${token.smiley.name} (${token.smiley.fileName})`;
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.addEventListener("error", () => image.replaceWith(fallback), { once: true });
+    return image;
   }
 
   function tokenizeSmilies(text) {
