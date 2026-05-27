@@ -50,6 +50,7 @@
     .sort((a, b) => b.code.length - a.code.length || a.code.localeCompare(b.code));
   const smileyBasePath = "smileys/";
   const accountStorageKey = "teletyptel.accountProfile";
+  const accountApiPath = "api/account.php";
 
   const state = {
     mode: "relay",
@@ -238,7 +239,8 @@
         loadSavedAccountProfile());
       state.account = account;
       applyAccountProfile(account);
-      const provider = await fetchJson(`config/providers/${encodeURIComponent(account.providerId)}.json`);
+      await loadDatabaseAccount(account.accountId);
+      const provider = await fetchJson(`config/providers/${encodeURIComponent(state.account.providerId)}.json`);
       state.provider = provider;
       renderProvider();
       renderTabs();
@@ -247,6 +249,35 @@
       el.providerSummary.textContent = "Provider manifest unavailable.";
       appendDebug("config-error", error.message);
       renderTabs();
+    }
+  }
+
+  async function loadDatabaseAccount(accountId) {
+    try {
+      const response = await fetch(`${accountApiPath}?accountId=${encodeURIComponent(accountId)}`, {
+        cache: "no-store"
+      });
+      if (response.status === 404) {
+        appendDebug("account-db", "No database account yet");
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`account API returned ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (payload.ok && payload.account) {
+        state.account = {
+          ...state.account,
+          ...payload.account,
+          savedInDatabase: true
+        };
+        applyAccountProfile(state.account);
+        appendDebug("account-db", `Loaded ${state.account.jid}`);
+      }
+    } catch (error) {
+      appendDebug("account-db-error", error.message);
     }
   }
 
@@ -326,6 +357,35 @@
     updateRelayConversationMeta();
     updateAccountStatus("Local account saved");
     appendDebug("account", `Saved ${el.jidInput.value}`);
+    saveDatabaseAccount(profile);
+  }
+
+  async function saveDatabaseAccount(profile) {
+    try {
+      const response = await fetch(accountApiPath, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(profile)
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error || `account API returned ${response.status}`);
+      }
+
+      state.account = {
+        ...state.account,
+        ...payload.account,
+        savedInDatabase: true
+      };
+      updateAccountStatus("Database account saved");
+      appendDebug("account-db", `Saved ${payload.account.jid}`);
+    } catch (error) {
+      updateAccountStatus("Local account saved; database unavailable");
+      appendDebug("account-db-error", error.message);
+    }
   }
 
   function resetAccountProfile() {
@@ -361,7 +421,15 @@
       renderActiveConversation();
     }
 
-    updateAccountStatus(localStorage.getItem(accountStorageKey) ? "Local account saved" : "Default account profile");
+    updateAccountStatus(accountStatusPrefix());
+  }
+
+  function accountStatusPrefix() {
+    if (state.account?.savedInDatabase) {
+      return "Database account loaded";
+    }
+
+    return localStorage.getItem(accountStorageKey) ? "Local account saved" : "Default account profile";
   }
 
   function renderProvider() {

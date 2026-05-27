@@ -52,6 +52,40 @@ Provider manifests define tabs and capabilities such as `phone:sms`,
 configuration only; secrets and production provider credentials must stay out
 of public web assets.
 
+## MySQL Account Storage
+
+The web client can save the local account profile to MySQL through:
+
+```text
+php/public/api/account.php
+```
+
+Create the database tables with:
+
+```sql
+SOURCE php/schema.sql;
+```
+
+Then create a local config file from the example:
+
+```text
+php/config.example.php -> php/config.php
+```
+
+`php/config.php` is ignored by Git. You can also use environment variables:
+
+```text
+TELETYPTEL_DB_HOST
+TELETYPTEL_DB_PORT
+TELETYPTEL_DB_NAME
+TELETYPTEL_DB_USER
+TELETYPTEL_DB_PASSWORD
+```
+
+The browser still keeps a local fallback profile. If MySQL is unavailable, the
+client continues to work locally and logs the database error in the debug panel.
+Passwords are only stored when the user enables "Remember password locally".
+
 For RFC 7395 tests, connect with the `xmpp` WebSocket subprotocol. The relay
 responds with the same subprotocol, accepts RFC 7395 `<open/>` and `<close/>`
 frames and relays `<message/>`, `<presence/>` and `<iq/>` frames to other
