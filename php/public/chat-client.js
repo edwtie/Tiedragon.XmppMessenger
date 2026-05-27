@@ -49,6 +49,7 @@
     .flatMap((smiley) => smiley.codes.map((code) => ({ code, smiley })))
     .sort((a, b) => b.code.length - a.code.length || a.code.localeCompare(b.code));
   const smileyBasePath = "smileys/";
+  const accountStorageKey = "teletyptel.accountProfile";
 
   const state = {
     mode: "relay",
@@ -109,6 +110,9 @@
     peerInput: byId("peerInput"),
     phoneInput: byId("phoneInput"),
     providerInput: byId("providerInput"),
+    accountStatus: byId("accountStatus"),
+    saveAccountButton: byId("saveAccountButton"),
+    resetAccountButton: byId("resetAccountButton"),
     providerSummary: byId("providerSummary"),
     capabilityList: byId("capabilityList"),
     xmppUrlInput: byId("xmppUrlInput"),
@@ -139,6 +143,11 @@
     el.composerForm.addEventListener("submit", sendComposerMessage);
     el.messageInput.addEventListener("input", sendRttEdit);
     el.messageInput.addEventListener("keydown", handleComposerKeydown);
+    el.saveAccountButton.addEventListener("click", saveAccountProfile);
+    el.resetAccountButton.addEventListener("click", resetAccountProfile);
+    el.peerInput.addEventListener("change", updateRelayConversationMeta);
+    el.displayNameInput.addEventListener("change", renderActiveConversation);
+    el.jidInput.addEventListener("change", renderActiveConversation);
     el.xmppOpenButton.addEventListener("click", connectXmppWebSocket);
     el.xmppCloseButton.addEventListener("click", closeXmppWebSocket);
     el.clearLogButton.addEventListener("click", () => {
@@ -220,7 +229,9 @@
 
   async function loadPlatformConfig() {
     try {
-      const account = await fetchJson("config/account-profile.json");
+      const account = mergeAccountProfiles(
+        await fetchJson("config/account-profile.json"),
+        loadSavedAccountProfile());
       state.account = account;
       applyAccountProfile(account);
       const provider = await fetchJson(`config/providers/${encodeURIComponent(account.providerId)}.json`);
@@ -252,6 +263,84 @@
     el.providerInput.value = account.providerId ?? "";
     el.relayUrlInput.value = account.relayWebSocket ?? el.relayUrlInput.value;
     el.xmppUrlInput.value = account.xmppWebSocket ?? el.xmppUrlInput.value;
+    updateAccountStatus(account.savedLocally === true ? "Local account saved" : "Default account profile");
+    updateRelayConversationMeta();
+  }
+
+  function mergeAccountProfiles(defaultAccount, savedAccount) {
+    if (!savedAccount) {
+      return defaultAccount;
+    }
+
+    return {
+      ...defaultAccount,
+      ...savedAccount,
+      providerId: savedAccount.providerId || defaultAccount.providerId,
+      savedLocally: true
+    };
+  }
+
+  function loadSavedAccountProfile() {
+    const saved = localStorage.getItem(accountStorageKey);
+    if (!saved) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      localStorage.removeItem(accountStorageKey);
+      return null;
+    }
+  }
+
+  function currentAccountProfile() {
+    return {
+      accountId: state.account?.accountId ?? "local-account",
+      jid: stripGeneratedResourceSuffix(el.jidInput.value.trim()),
+      displayName: el.displayNameInput.value.trim() || "Me",
+      phoneNumber: el.phoneInput.value.trim(),
+      providerId: el.providerInput.value.trim() || state.account?.providerId || "example-provider",
+      accessibilityProfileId: state.account?.accessibilityProfileId ?? "default-live-text",
+      preferredLanguage: state.account?.preferredLanguage ?? "nl",
+      relayWebSocket: el.relayUrlInput.value.trim(),
+      xmppWebSocket: el.xmppUrlInput.value.trim(),
+      peer: el.peerInput.value.trim()
+    };
+  }
+
+  function saveAccountProfile() {
+    const profile = currentAccountProfile();
+    localStorage.setItem(accountStorageKey, JSON.stringify(profile));
+    state.account = { ...state.account, ...profile, savedLocally: true };
+    el.jidInput.value = createUniqueJid(profile.jid);
+    updateRelayConversationMeta();
+    updateAccountStatus("Local account saved");
+    appendDebug("account", `Saved ${el.jidInput.value}`);
+  }
+
+  function resetAccountProfile() {
+    localStorage.removeItem(accountStorageKey);
+    sessionStorage.removeItem("teletyptel.clientInstance");
+    updateAccountStatus("Account reset; reload to restore defaults");
+    appendDebug("account", "Local account profile cleared");
+    location.reload();
+  }
+
+  function updateAccountStatus(text) {
+    el.accountStatus.textContent = `${text} - ${el.jidInput.value || "no JID"}`;
+  }
+
+  function updateRelayConversationMeta() {
+    const relay = state.conversations.find((conversation) => conversation.id === "relay");
+    if (relay) {
+      relay.meta = `Peer: ${currentToJid()}`;
+      renderConversations();
+      renderActiveConversation();
+    }
+
+    updateAccountStatus(localStorage.getItem(accountStorageKey) ? "Local account saved" : "Default account profile");
   }
 
   function renderProvider() {
@@ -872,6 +961,12 @@
     }
 
     return `${bare}/${resource}-${state.clientInstance.resourceSuffix}`;
+  }
+
+  function stripGeneratedResourceSuffix(jid) {
+    const value = String(jid ?? "").trim();
+    const marker = `-${state.clientInstance.resourceSuffix}`;
+    return value.endsWith(marker) ? value.slice(0, -marker.length) : value;
   }
 
   function domainFromJid(jid) {

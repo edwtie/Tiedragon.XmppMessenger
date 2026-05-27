@@ -391,6 +391,16 @@ textarea {
   font-size: 13px;
 }
 
+.account-status {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #132034;
+  color: #dbeafe;
+  padding: 7px 9px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .capability-list {
   display: flex;
   flex-wrap: wrap;
@@ -591,6 +601,11 @@ body[data-theme="light"] .capability {
   color: #0f172a;
 }
 
+body[data-theme="light"] .account-status {
+  background: #f5f8fc;
+  color: #334155;
+}
+
 body[data-theme="light"] input,
 body[data-theme="light"] textarea,
 body[data-theme="light"] .debug-log,
@@ -654,6 +669,11 @@ body[data-theme="dark"] .provider-card {
 }
 
 body[data-theme="dark"] .capability {
+  background: #132034;
+  color: #dbeafe;
+}
+
+body[data-theme="dark"] .account-status {
   background: #132034;
   color: #dbeafe;
 }
