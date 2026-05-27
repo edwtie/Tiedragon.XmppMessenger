@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="16">
+    <style>
+        .ani{animation:2s linear infinite}
+        @keyframes a1{0%,65%,to{transform:translate(0,0) scale(1)}15%,50%{transform:translate(0,8px) scale(1,.5)}}
+        @keyframes a2{0%{transform:translate(0)}15%,50%{transform:translate(0,11px) scale(1,.4)}65%,to{transform:translate(0) scale(1)}}
+        @keyframes a2l{0%,65%,to{transform:skewX(0)}15%,50%{transform:skewX(10deg)}}
+        @keyframes a2r{0%,65%,to{transform:skewX(0)}15%,50%{transform:skewX(-10deg)}}
+        @media(prefers-reduced-motion){.ani{animation:none}}
+    </style>
+    <defs>
+        <radialGradient id="a" cx="0" cy="0" r="13" gradientTransform="rotate(60 .72 5.4)" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#fafae3"/>
+            <stop offset=".23" stop-color="#ffffa2"/>
+            <stop offset=".66" stop-color="#ffef06"/>
+            <stop offset="1" stop-color="#c7b300"/>
+        </radialGradient>
+        <radialGradient id="b" cx="0" cy="0" r=".5" gradientUnits="userSpaceOnUse" gradientTransform="matrix(5 12 -10 4 4 2.7)">
+            <stop stop-color="#fafae3"/>
+            <stop offset=".23" stop-color="#ffffa2"/>
+            <stop offset=".66" stop-color="#ffef06"/>
+            <stop offset="1" stop-color="#c7b300"/>
+        </radialGradient>
+        <radialGradient id="c" cx="0" cy="0" r=".5" gradientUnits="userSpaceOnUse" gradientTransform="matrix(-5 12 -10 -4 30 2.7)">
+            <stop stop-color="#fafae3"/>
+            <stop offset=".23" stop-color="#ffffa2"/>
+            <stop offset=".66" stop-color="#ffef06"/>
+            <stop offset="1" stop-color="#c7b300"/>
+        </radialGradient>
+    </defs>
+    <circle cx="8" cy="8" r="7.9" fill="url(#a)" transform="translate(9)"/>
+    <circle cx="8" cy="8" r="7.63" fill="none" stroke="#000" stroke-opacity=".9" stroke-width=".75" transform="translate(9)"/>
+    <g class="ani" style="animation-name:a1">
+        <rect x="14.5" y="4" width="2" height="2" rx=".5" fill-opacity=".9"/>
+        <rect x="18.5" y="4" width="2" height="2" rx=".5" fill-opacity=".9"/>
+        <path d="M21.75 7.75c-.1.75-.8 2.043-2.17 2.5-.75.25-1.33.25-2.33.25M12.75 7.75c.1.75.8 2.043 2.17 2.5.75.25 1.33.25 2.33.25" fill="none" stroke="#000" stroke-width="1.1" stroke-opacity=".9"/>
+    </g>
+    <g class="ani" style="animation-name:a2">
+        <g class="ani" style="animation-name:a2l">
+            <path d="M8.125 5.375v1.563a3.125 3.125 0 0 1-6.25 0V3.655a.781.781 0 0 1 1.563 0v-1.25a.781.781 0 0 1 1.562 0v.625a.781.781 0 0 1 1.563 0v2.344a.781.781 0 0 1 1.562 0Z" fill="url(#b)" stroke="#ccba00" stroke-width=".5"/>
+            <path d="M7.344 4.281c-.162 0-.323.036-.469.106V3.031a1.094 1.094 0 0 0-1.616-.96 1.094 1.094 0 0 0-2.134.335v.262a1.093 1.093 0 0 0-1.563.988v3.281a3.437 3.437 0 1 0 6.875 0V5.375a1.095 1.095 0 0 0-1.093-1.094Zm.468 2.657a2.813 2.813 0 0 1-5.625 0V3.655a.469.469 0 0 1 .938 0v1.719a.312.312 0 1 0 .625 0V2.406a.469.469 0 0 1 .938 0v2.656a.312.312 0 1 0 .625 0v-2.03a.469.469 0 0 1 .937 0V5.87a1.878 1.878 0 0 0-1.563 1.849.312.312 0 1 0 .625 0 1.251 1.251 0 0 1 1.25-1.25.313.313 0 0 0 .313-.313v-.781a.469.469 0 0 1 .938 0v1.563Z" fill-opacity=".9" stroke-width=".5"/>
+        </g>
+        <g class="ani" style="animation-name:a2r">
+            <path d="M25.875 5.375v1.563a3.125 3.125 0 1 0 6.25 0V3.655a.781.781 0 1 0-1.562 0v-1.25a.781.781 0 1 0-1.563 0v.625a.781.781 0 1 0-1.562 0v2.344a.781.781 0 1 0-1.563 0Z" fill="url(#c)" stroke="#ccba00" stroke-width=".5"/>
+            <path d="M26.656 4.281c.162 0 .323.036.469.106V3.031a1.093 1.093 0 0 1 1.616-.96 1.094 1.094 0 0 1 2.134.335v.262a1.093 1.093 0 0 1 1.562.988v3.281a3.438 3.438 0 0 1-6.874 0V5.375a1.095 1.095 0 0 1 1.093-1.094Zm-.468 2.657a2.812 2.812 0 1 0 5.625 0V3.655a.469.469 0 0 0-.938 0v1.719a.312.312 0 1 1-.625 0V2.406a.469.469 0 0 0-.937 0v2.656a.312.312 0 1 1-.625 0v-2.03a.469.469 0 0 0-.938 0V5.87a1.878 1.878 0 0 1 1.563 1.849.312.312 0 1 1-.625 0 1.252 1.252 0 0 0-1.25-1.25.313.313 0 0 1-.313-.313v-.781a.469.469 0 0 0-.937 0v1.563Z" fill-opacity=".9" stroke-width=".5"/>
+        </g>
+    </g>
+</svg>

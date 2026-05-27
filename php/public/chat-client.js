@@ -731,7 +731,16 @@
     image.title = `${token.smiley.name} (${token.smiley.fileName})`;
     image.loading = "lazy";
     image.decoding = "async";
-    image.addEventListener("error", () => image.replaceWith(fallback), { once: true });
+    image.addEventListener("error", () => {
+      const fallbackFile = token.smiley.fileName.replace(/\.[^.]+$/, ".svg");
+      if (fallbackFile !== token.smiley.fileName && !image.dataset.triedSvg) {
+        image.dataset.triedSvg = "true";
+        image.src = smileyBasePath + encodeURIComponent(fallbackFile);
+        return;
+      }
+
+      image.replaceWith(fallback);
+    });
     return image;
   }
 
