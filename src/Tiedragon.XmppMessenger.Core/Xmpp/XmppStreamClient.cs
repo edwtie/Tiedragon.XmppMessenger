@@ -14,6 +14,7 @@ public sealed class XmppStreamClient : IAsyncDisposable
     private readonly XmppStreamReader _reader = new();
     private readonly XmppIqTracker _iqTracker = new();
     private readonly XmppStreamManagementState _streamManagement = new();
+    private readonly Queue<XmppStreamNode> _pendingNodes = new();
     private bool _tlsActive;
     private bool _authenticated;
     private bool _resourceBound;
@@ -874,28 +875,38 @@ public sealed class XmppStreamClient : IAsyncDisposable
     {
         while (true)
         {
-            var nodes = await ReadNodesAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var node in nodes)
+            if (_pendingNodes.Count == 0)
             {
-                if (node.Type == XmppStreamNodeType.Stanza && node.Element is not null)
+                foreach (var node in await ReadNodesAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    if (await HandleStreamManagementElementAsync(node.Element, cancellationToken).ConfigureAwait(false))
-                    {
-                        continue;
-                    }
+                    _pendingNodes.Enqueue(node);
+                }
+            }
 
-                    if (IsClientStanza(node.Element))
-                    {
-                        _streamManagement.CountInboundStanza();
-                    }
+            if (_pendingNodes.Count == 0)
+            {
+                continue;
+            }
 
-                    return XmppIncomingStanza.FromElement(node.Element);
+            var next = _pendingNodes.Dequeue();
+            if (next.Type == XmppStreamNodeType.Stanza && next.Element is not null)
+            {
+                if (await HandleStreamManagementElementAsync(next.Element, cancellationToken).ConfigureAwait(false))
+                {
+                    continue;
                 }
 
-                if (node.Type is XmppStreamNodeType.StreamClosed or XmppStreamNodeType.StreamError)
+                if (IsClientStanza(next.Element))
                 {
-                    throw CreateStreamFailure(node, "The stream closed before a stanza was received.");
+                    _streamManagement.CountInboundStanza();
                 }
+
+                return XmppIncomingStanza.FromElement(next.Element);
+            }
+
+            if (next.Type is XmppStreamNodeType.StreamClosed or XmppStreamNodeType.StreamError)
+            {
+                throw CreateStreamFailure(next, "The stream closed before a stanza was received.");
             }
         }
     }

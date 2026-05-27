@@ -69,6 +69,7 @@ var tests = new (string Name, Action Test)[]
     ("XMPP stream client sends initial presence", XmppStreamClientSendsInitialPresence),
     ("XMPP stream client sends presence subscription", XmppStreamClientSendsPresenceSubscription),
     ("XMPP stream client sends and receives normal chat", XmppStreamClientSendsAndReceivesNormalChat),
+    ("XMPP stream client preserves multiple stanzas from one read", XmppStreamClientPreservesMultipleStanzasFromOneRead),
     ("XMPP stream client enables message carbons", XmppStreamClientEnablesMessageCarbons),
     ("XMPP incoming stanza classifies message presence IQ", XmppIncomingStanzaClassifiesMessagePresenceIq),
     ("XMPP IQ tracker completes result", XmppIqTrackerCompletesResult),
@@ -1824,6 +1825,61 @@ static async Task RunXmppStreamClientSendsAndReceivesNormalChatAsync()
         True(reply.IsMessage);
         Equal("Hoi terug", reply.Message!.Body);
         Equal("anna@example.org/phone", reply.Message.From!.Full);
+    }
+    finally
+    {
+        listener.Stop();
+    }
+}
+
+static void XmppStreamClientPreservesMultipleStanzasFromOneRead()
+{
+    RunXmppStreamClientPreservesMultipleStanzasFromOneReadAsync().GetAwaiter().GetResult();
+}
+
+static async Task RunXmppStreamClientPreservesMultipleStanzasFromOneReadAsync()
+{
+    var listener = new TcpListener(IPAddress.Loopback, 0);
+    listener.Start();
+    var endpoint = (IPEndPoint)listener.LocalEndpoint;
+
+    var serverTask = Task.Run(async () =>
+    {
+        using var serverClient = await listener.AcceptTcpClientAsync();
+        await using var serverStream = serverClient.GetStream();
+        var buffer = new byte[8192];
+
+        await ReadTextAsync(serverStream, buffer);
+        await WriteTextAsync(serverStream, """
+            <stream:stream xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" from="example.org" version="1.0">
+            <stream:features/>
+            """);
+
+        await WriteTextAsync(serverStream, """
+            <message xmlns="jabber:client" type="chat" from="anna@example.org/phone" to="user@example.org/desktop" id="batch-1"><body>Een</body></message><message xmlns="jabber:client" type="chat" from="anna@example.org/phone" to="user@example.org/desktop" id="batch-2"><body>Twee</body></message>
+            """);
+
+        await ReadTextAsync(serverStream, buffer);
+    });
+
+    try
+    {
+        var settings = new XmppConnectionSettings(
+            XmppAddress.Parse("user@example.org/desktop"),
+            IPAddress.Loopback.ToString(),
+            endpoint.Port,
+            requireTls: false);
+        await using var client = new XmppStreamClient(settings);
+        await client.ConnectAndReadFeaturesAsync();
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var first = await client.ReadNextStanzaAsync(timeout.Token);
+        var second = await client.ReadNextStanzaAsync(timeout.Token);
+        await client.DisconnectAsync();
+        await serverTask;
+
+        Equal("Een", first.Message!.Body);
+        Equal("Twee", second.Message!.Body);
     }
     finally
     {

@@ -192,7 +192,7 @@ item is implemented, tested and documented.
 - [x] Room configuration forms.
 - [x] Moderation/admin flows.
 - [x] Interoperability smoke path for Prosody/ejabberd MUC through `RealServerSmoke --muc-service --muc-room`.
-- [ ] Interoperability smoke executed against a real Prosody or ejabberd MUC service.
+- [x] Interoperability smoke executed against a real Prosody MUC service.
 
 ## XEP-0363 - HTTP File Upload
 

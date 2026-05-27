@@ -149,6 +149,37 @@ Result on 2026-05-27:
 - `PASS Hostname mismatch rejected.`
 - `PASS Two-account chat message delivered.`
 
+Verified local Prosody MUC smoke target:
+
+```powershell
+dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
+  --host 127.0.0.1 `
+  --port 5222 `
+  --account1 edward@localhost/desktop `
+  --password1 secret `
+  --account2 anna@localhost/desktop `
+  --password2 secret `
+  --bad-host wrong.example.org `
+  --cert-sha256 880B546DA2FF30C73E5E6876CB95F16528694B9AB0B6DE354FD4D3ED097B3849 `
+  --muc-service conference.localhost `
+  --muc-room team@conference.localhost `
+  --muc-nick1 EdwardSmoke `
+  --muc-nick2 AnnaSmoke `
+  --muc-admin `
+  --timeout-seconds 60
+```
+
+Result on 2026-05-27 with Prosody 0.12.4 on Ubuntu 24.04 WSL2:
+
+- `PASS TLS certificate accepted for configured host.`
+- `PASS Hostname mismatch rejected.`
+- `PASS Two-account chat message delivered.`
+- `PASS MUC service advertises http://jabber.org/protocol/muc.`
+- `PASS MUC instant room configuration submitted.`
+- `PASS Two accounts joined team@conference.localhost as EdwardSmoke and AnnaSmoke.`
+- `PASS MUC groupchat delivered from team@conference.localhost/EdwardSmoke.`
+- `PASS MUC owner configuration form returned 16 field(s).`
+
 Full TLS, hostname, two-account chat and MUC smoke:
 
 ```powershell
@@ -262,8 +293,6 @@ dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
 
 The repository has fake-server tests for stream negotiation, SASL, bind, roster,
 presence, normal chat, stream management, RTT and MUC. The real-server smoke
-tool can now exercise the same MUC discovery/join/groupchat path against
-Prosody, ejabberd, Openfire or another standards-compliant server when test
-accounts and a conference service are available. The final interoperability
-checkbox remains open until that command has been run against a real Prosody or
-ejabberd instance and its output has been recorded here.
+tool now exercises the same MUC discovery/join/groupchat path against local
+Prosody. ejabberd/Openfire remain useful second and third interoperability
+targets.

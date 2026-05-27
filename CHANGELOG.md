@@ -19,6 +19,8 @@
 - Real-server smoke MUC options for XEP-0045 service discovery, room discovery,
   two-account room join, groupchat delivery and optional owner/admin checks.
 - Local fake-server MUC conference path for repeatable smoke runs.
+- `XmppStreamClient.ReadNextStanzaAsync` now preserves additional stanzas that
+  arrive in the same stream read, matching real Prosody batching behavior.
 - Local web file upload endpoint and chat attachment cards for Alpha relay
   testing.
 

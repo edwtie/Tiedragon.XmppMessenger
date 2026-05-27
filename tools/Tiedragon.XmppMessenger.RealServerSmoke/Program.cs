@@ -236,20 +236,9 @@ static async Task<SslStream> StartTlsAndOpenRegistrationStreamAsync(
 
 static async Task VerifyTwoAccountChatAsync(SmokeOptions options, CancellationToken cancellationToken)
 {
-    var clientOptions = new XmppStreamOptions(
-        XmppStreamOptions.Default.PreferredLanguage,
-        XmppStreamOptions.Default.Resource,
-        options.Timeout,
-        XmppStreamOptions.Default.KeepAliveInterval);
     var tlsUpgrader = new SmokeTlsStreamUpgrader(options.CertificateSha256);
-    await using var sender = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account1, options.Host, options.Port, requireTls: true),
-        clientOptions,
-        tlsUpgrader);
-    await using var receiver = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account2, options.Host, options.Port, requireTls: true),
-        clientOptions,
-        tlsUpgrader);
+    await using var sender = CreateClient(options, options.Account1, tlsUpgrader);
+    await using var receiver = CreateClient(options, options.Account2, tlsUpgrader);
 
     await sender.LoginAsync(options.Account1.LocalPart ?? options.Account1.Bare, options.Password1, cancellationToken: cancellationToken);
     await receiver.LoginAsync(options.Account2.LocalPart ?? options.Account2.Bare, options.Password2!, cancellationToken: cancellationToken);
@@ -257,12 +246,17 @@ static async Task VerifyTwoAccountChatAsync(SmokeOptions options, CancellationTo
     await receiver.SendInitialPresenceAsync(cancellationToken: cancellationToken);
 
     var text = "Teletyptel smoke " + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-    await sender.SendChatMessageAsync(new XmppChatMessage(options.Account2, text), cancellationToken);
+    await sender.SendChatMessageAsync(new XmppChatMessage(XmppAddress.Parse(options.Account2.Bare), text), cancellationToken);
+    if (!string.IsNullOrWhiteSpace(options.Account2.ResourcePart))
+    {
+        await sender.SendChatMessageAsync(new XmppChatMessage(options.Account2, text), cancellationToken);
+    }
 
     while (true)
     {
         var stanza = await receiver.ReadNextStanzaAsync(cancellationToken);
-        if (stanza.Message?.Body == text)
+        if (stanza.Element.Name == XName.Get("message", "jabber:client")
+            && stanza.Element.Element(XName.Get("body", "jabber:client"))?.Value == text)
         {
             return;
         }
@@ -313,13 +307,6 @@ static async Task VerifyMultiUserChatAsync(SmokeOptions options, CancellationTok
             "MUC room join/groupchat smoke requires --account2 and --password2.");
     }
 
-    var roomItems = await sender.RequestMultiUserChatRoomItemsAsync(
-        options.MucRoom,
-        options.Timeout,
-        id: "muc-room-items",
-        cancellationToken: cancellationToken);
-    Console.WriteLine($"PASS MUC room item discovery returned {roomItems.Count} item(s).");
-
     await using var receiver = CreateClient(options, options.Account2, tlsUpgrader);
     await receiver.LoginAsync(
         options.Account2.LocalPart ?? options.Account2.Bare,
@@ -331,10 +318,28 @@ static async Task VerifyMultiUserChatAsync(SmokeOptions options, CancellationTok
     var nick2 = options.MucNick2 ?? DefaultNick(options.Account2, "teletyptel-b");
 
     await sender.SendMultiUserChatJoinAsync(options.MucRoom, nick1, historyMaxChars: 0, cancellationToken: cancellationToken);
-    await WaitForMucSelfPresenceAsync(sender, options.MucRoom, nick1, cancellationToken);
+    var roomWasCreated = await WaitForMucSelfPresenceAsync(sender, options.MucRoom, nick1, cancellationToken);
+    if (roomWasCreated)
+    {
+        await sender.SubmitMultiUserChatConfigurationAsync(
+            options.MucRoom,
+            [],
+            options.Timeout,
+            id: "muc-instant-room",
+            cancellationToken: cancellationToken);
+        Console.WriteLine("PASS MUC instant room configuration submitted.");
+    }
+
     await receiver.SendMultiUserChatJoinAsync(options.MucRoom, nick2, historyMaxChars: 0, cancellationToken: cancellationToken);
     await WaitForMucSelfPresenceAsync(receiver, options.MucRoom, nick2, cancellationToken);
     Console.WriteLine($"PASS Two accounts joined {options.MucRoom.Bare} as {nick1} and {nick2}.");
+
+    var roomItems = await sender.RequestMultiUserChatRoomItemsAsync(
+        options.MucRoom,
+        options.Timeout,
+        id: "muc-room-items",
+        cancellationToken: cancellationToken);
+    Console.WriteLine($"PASS MUC room item discovery returned {roomItems.Count} item(s).");
 
     var text = "Teletyptel MUC smoke " + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     await sender.SendMultiUserChatMessageAsync(
@@ -378,7 +383,7 @@ static XmppStreamClient CreateClient(
 {
     var clientOptions = new XmppStreamOptions(
         XmppStreamOptions.Default.PreferredLanguage,
-        XmppStreamOptions.Default.Resource,
+        account.ResourcePart ?? XmppStreamOptions.Default.Resource,
         options.Timeout,
         XmppStreamOptions.Default.KeepAliveInterval);
     return new XmppStreamClient(
@@ -394,7 +399,7 @@ static bool IsMultiUserChatService(XmppServiceDiscoveryInfo info)
             string.Equals(identity.Category, "conference", StringComparison.OrdinalIgnoreCase));
 }
 
-static async Task WaitForMucSelfPresenceAsync(
+static async Task<bool> WaitForMucSelfPresenceAsync(
     XmppStreamClient client,
     XmppAddress room,
     string nick,
@@ -415,7 +420,9 @@ static async Task WaitForMucSelfPresenceAsync(
             throw new InvalidOperationException("MUC join failed: " + stanza.Element);
         }
 
-        return;
+        return stanza.Element
+            .Descendants(XName.Get("status", XmppMultiUserChat.UserNamespaceName))
+            .Any(element => string.Equals((string?)element.Attribute("code"), "201", StringComparison.Ordinal));
     }
 }
 
