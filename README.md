@@ -37,6 +37,7 @@ Alpha 1 currently provides:
 
 - browser chat UI with light/dark mode
 - local PHP WebSocket relay for live RTT experiments
+- local web file upload with chat attachment cards
 - local account profile storage with MySQL API fallback
 - English and Dutch web UI language files
 - legacy smiley rendering with SVG/GIF assets

@@ -89,6 +89,22 @@ php/public/chat.html
 It uses the same relay for RTT chat, includes RFC 7395 test controls and is the
 preferred UI direction for later Android/iOS WebView packaging.
 
+The Alpha web client can upload local files through:
+
+```text
+php/public/api/upload.php
+```
+
+Uploaded files are stored under:
+
+```text
+php/public/uploads
+```
+
+The chat then sends a normal relay message with attachment metadata. This is a
+local Alpha upload path for UI testing. It is not yet XEP-0363 HTTP File Upload
+against a production XMPP server component.
+
 The web client also loads its local platform configuration from:
 
 ```text

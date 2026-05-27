@@ -12,3 +12,5 @@ TestResults/
 archive-teletyptel/
 php/*screenshot*.png
 php/config.php
+php/public/uploads/*
+!php/public/uploads/.gitkeep

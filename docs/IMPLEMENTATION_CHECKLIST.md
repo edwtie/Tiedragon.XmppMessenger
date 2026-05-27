@@ -8,6 +8,7 @@ item is implemented, tested and documented.
 - [x] Teletyptel architecture diagram linked from the README.
 - [x] XMPP core, RFC 7395 and XEP extensions shown as separate architecture layers.
 - [x] Web client light/dark theme switch.
+- [x] Web client local file upload endpoint and attachment rendering.
 - [x] Web client account profile controls for JID, display name, peer, password option and language.
 - [x] Local browser profile fallback for account settings.
 - [x] PHP account API for loading and saving account profiles.
@@ -198,6 +199,7 @@ item is implemented, tested and documented.
 - [x] Slot result parser.
 - [x] Allowed PUT header filtering.
 - [x] `XmppStreamClient` slot request helper.
+- [x] Alpha web local upload endpoint and chat attachment message rendering.
 - [ ] HTTP PUT upload executor.
 - [ ] Send uploaded URL as message attachment.
 - [ ] Server max-file-size discovery.

@@ -158,6 +158,8 @@ if ($Target -eq "Windows" -or $Target -eq "All") {
     $requiredFiles += @(
     "wamp\www\teletyptel\public\chat.html",
     "wamp\www\teletyptel\public\api\account.php",
+    "wamp\www\teletyptel\public\api\upload.php",
+    "wamp\www\teletyptel\public\uploads\.gitkeep",
     "wamp\www\teletyptel\lib\Database.php",
     "wamp\www\teletyptel\rtt-websocket-server.php",
     "wamp\www\teletyptel\schema.sql",
@@ -174,6 +176,8 @@ if ($Target -eq "Linux" -or $Target -eq "All") {
     $requiredFiles += @(
         "linux\var\www\teletyptel\public\chat.html",
         "linux\var\www\teletyptel\public\api\account.php",
+        "linux\var\www\teletyptel\public\api\upload.php",
+        "linux\var\www\teletyptel\public\uploads\.gitkeep",
         "linux\var\www\teletyptel\lib\Database.php",
         "linux\var\www\teletyptel\rtt-websocket-server.php",
         "linux\var\www\teletyptel\schema.sql",

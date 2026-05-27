@@ -78,6 +78,10 @@ textarea {
   padding: 8px 10px;
 }
 
+.file-input {
+  display: none;
+}
+
 textarea {
   resize: vertical;
   min-height: 96px;
@@ -301,6 +305,52 @@ textarea {
   padding: 8px 10px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  border: 1px solid #5c7598;
+  border-radius: var(--radius);
+  background: rgba(79, 140, 255, .12);
+  color: var(--text);
+  padding: 8px;
+  text-decoration: none;
+}
+
+.attachment-card:hover {
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, .2);
+}
+
+.attachment-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--accent-strong);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.attachment-text {
+  display: grid;
+  min-width: 0;
+}
+
+.attachment-text strong,
+.attachment-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-text small {
+  color: var(--muted);
 }
 
 .message.self .message-body {

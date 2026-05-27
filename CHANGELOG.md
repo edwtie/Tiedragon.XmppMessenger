@@ -13,6 +13,8 @@
   ICE-UDP transport placeholder.
 - `XmppStreamClient` helper methods for the new upload, OMEMO, MUC and Jingle
   protocol flows.
+- Local web file upload endpoint and chat attachment cards for Alpha relay
+  testing.
 
 ### Known Limits
 
@@ -20,6 +22,8 @@
   handling are not implemented yet.
 - Voice/video media transport, WebRTC integration and ICE candidate exchange
   are not implemented yet.
+- Web file upload currently stores files locally under the PHP public upload
+  directory; XEP-0363 server slot execution is still future work.
 
 ## 0.1.0-alpha1 - 2026-05-27
 

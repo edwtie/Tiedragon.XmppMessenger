@@ -51,6 +51,7 @@
   const smileyBasePath = "smileys/";
   const accountStorageKey = "teletyptel.accountProfile";
   const accountApiPath = "api/account.php";
+  const uploadApiPath = "api/upload.php";
   const languageBasePath = "lang/";
 
   const state = {
@@ -103,6 +104,8 @@
     remoteDraftText: byId("remoteDraftText"),
     composerForm: byId("composerForm"),
     resetRttButton: byId("resetRttButton"),
+    uploadFileButton: byId("uploadFileButton"),
+    fileInput: byId("fileInput"),
     rttToggle: byId("rttToggle"),
     smileyToggle: byId("smileyToggle"),
     messageInput: byId("messageInput"),
@@ -147,6 +150,8 @@
     el.xmppModeButton.addEventListener("click", () => setMode("xmpp"));
     el.closeTabPanelButton.addEventListener("click", () => activateTab("chat"));
     el.resetRttButton.addEventListener("click", sendRttReset);
+    el.uploadFileButton.addEventListener("click", () => el.fileInput.click());
+    el.fileInput.addEventListener("change", uploadSelectedFile);
     el.composerForm.addEventListener("submit", sendComposerMessage);
     el.messageInput.addEventListener("input", sendRttEdit);
     el.messageInput.addEventListener("keydown", handleComposerKeydown);
@@ -915,7 +920,7 @@
       state.remoteText = "";
       state.remoteFrom = envelopeFrom(envelope);
       state.remoteDraftUpdatedAt = null;
-      addMessage("peer", envelope.text ?? "", "received", state.remoteFrom);
+      addMessage("peer", envelope.text ?? "", "received", state.remoteFrom, envelope.attachment ?? null);
       return;
     }
 
@@ -925,13 +930,14 @@
     renderActiveConversation();
   }
 
-  function addMessage(direction, text, status, from = null) {
+  function addMessage(direction, text, status, from = null, attachment = null) {
     const conversation = activeConversation();
     conversation.messages.push({
       id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now() + Math.random()),
       direction,
       from,
       text,
+      attachment,
       status,
       timestamp: new Date()
     });
@@ -1016,8 +1022,97 @@
     const body = document.createElement("div");
     body.className = "message-body";
     renderRichText(body, message.text);
+    if (message.attachment) {
+      body.appendChild(createAttachmentElement(message.attachment));
+    }
     item.append(meta, body);
     return item;
+  }
+
+  function createAttachmentElement(attachment) {
+    const wrapper = document.createElement("a");
+    wrapper.className = "attachment-card";
+    wrapper.href = attachment.url;
+    wrapper.target = "_blank";
+    wrapper.rel = "noopener";
+    wrapper.download = attachment.name || "";
+
+    const icon = document.createElement("span");
+    icon.className = "attachment-icon";
+    icon.textContent = attachment.type?.startsWith("image/") ? "IMG" : "FILE";
+
+    const text = document.createElement("span");
+    text.className = "attachment-text";
+    const name = document.createElement("strong");
+    name.textContent = attachment.name || "download";
+    const meta = document.createElement("small");
+    meta.textContent = [formatBytes(attachment.size), attachment.type].filter(Boolean).join(" - ");
+    text.append(name, meta);
+
+    wrapper.append(icon, text);
+    return wrapper;
+  }
+
+  async function uploadSelectedFile() {
+    const file = el.fileInput.files?.[0];
+    el.fileInput.value = "";
+    if (!file) {
+      return;
+    }
+
+    el.uploadFileButton.disabled = true;
+    el.uploadFileButton.textContent = t("button.uploading", "Uploading...");
+    appendDebug("upload", `${file.name} (${file.size} bytes)`);
+
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await fetch(uploadApiPath, {
+        method: "POST",
+        body: data
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok || !payload.file) {
+        throw new Error(payload.error || `upload returned ${response.status}`);
+      }
+
+      sendFileMessage(payload.file);
+    } catch (error) {
+      appendDebug("upload-error", error.message);
+      addMessage("self", `${t("upload.failed", "Upload failed")}: ${file.name}`, "error");
+    } finally {
+      el.uploadFileButton.disabled = false;
+      el.uploadFileButton.textContent = t("button.upload_file", "Upload file");
+    }
+  }
+
+  function sendFileMessage(file) {
+    const text = `${t("upload.shared_file", "Shared file")}: ${file.name}`;
+    const attachment = {
+      name: file.name,
+      url: file.url,
+      size: file.size,
+      type: file.type
+    };
+
+    if (state.mode === "xmpp" && state.xmppSocket?.readyState === WebSocket.OPEN) {
+      const xml = createMessageStanza(`${text}\n${new URL(file.url, location.href).href}`);
+      state.xmppSocket.send(xml);
+      appendDebug("C", xml);
+      addMessage("self", text, "RFC 7395", null, attachment);
+      return;
+    }
+
+    if (!state.relaySocket || state.relaySocket.readyState !== WebSocket.OPEN) {
+      addMessage("self", text, "offline", null, attachment);
+      return;
+    }
+
+    const envelope = createRelayEnvelope("message", text, "");
+    envelope.attachment = attachment;
+    state.relaySocket.send(JSON.stringify(envelope));
+    appendDebug("upload-out", JSON.stringify(envelope));
+    addMessage("self", text, "sent", null, attachment);
   }
 
   function renderRichText(container, text) {
@@ -1173,6 +1268,28 @@
 
   function formatTime(date) {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatBytes(value) {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes < 0) {
+      return "";
+    }
+
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    const units = ["KB", "MB", "GB"];
+    let amount = bytes / 1024;
+    for (const unit of units) {
+      if (amount < 1024 || unit === "GB") {
+        return `${amount.toFixed(amount >= 10 ? 0 : 1)} ${unit}`;
+      }
+      amount /= 1024;
+    }
+
+    return `${bytes} B`;
   }
 
   function setConnectionStatus(text, level) {
