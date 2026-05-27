@@ -7,7 +7,8 @@ public sealed record RttJsonEnvelope(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("text")] string Text,
     [property: JsonPropertyName("xml")] string Xml,
-    [property: JsonPropertyName("sender")] string? Sender = null)
+    [property: JsonPropertyName("from")] string? From = null,
+    [property: JsonPropertyName("to")] string? To = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
@@ -15,15 +16,15 @@ public sealed record RttJsonEnvelope(
         WriteIndented = false
     };
 
-    public static RttJsonEnvelope FromPacket(RttPacket packet, string text, string? sender = null)
+    public static RttJsonEnvelope FromPacket(RttPacket packet, string text, string? from = null, string? to = null)
     {
         ArgumentNullException.ThrowIfNull(packet);
-        return new RttJsonEnvelope("rtt", text, packet.ToXml(), NormalizeSender(sender));
+        return new RttJsonEnvelope("rtt", text, packet.ToXml(), NormalizeAddress(from), NormalizeAddress(to));
     }
 
-    public static RttJsonEnvelope FromTextMessage(string text, string? sender = null)
+    public static RttJsonEnvelope FromTextMessage(string text, string? from = null, string? to = null)
     {
-        return new RttJsonEnvelope("message", text ?? string.Empty, string.Empty, NormalizeSender(sender));
+        return new RttJsonEnvelope("message", text ?? string.Empty, string.Empty, NormalizeAddress(from), NormalizeAddress(to));
     }
 
     public static bool TryParse(string json, out RttJsonEnvelope? envelope)
@@ -62,8 +63,8 @@ public sealed record RttJsonEnvelope(
         return JsonSerializer.Serialize(this, SerializerOptions);
     }
 
-    private static string? NormalizeSender(string? sender)
+    private static string? NormalizeAddress(string? address)
     {
-        return string.IsNullOrWhiteSpace(sender) ? null : sender.Trim();
+        return string.IsNullOrWhiteSpace(address) ? null : address.Trim();
     }
 }

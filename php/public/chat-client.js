@@ -60,7 +60,7 @@
     sequence: 0,
     previousText: "",
     remoteText: "",
-    remoteSender: "Remote",
+    remoteFrom: "",
     conversations: [
       {
         id: "relay",
@@ -544,7 +544,8 @@
       type,
       text,
       xml,
-      sender: currentSenderName()
+      from: currentFromJid(),
+      to: currentToJid()
     };
   }
 
@@ -552,10 +553,35 @@
     return el.displayNameInput.value.trim() || "Me";
   }
 
-  function envelopeSender(envelope) {
-    return typeof envelope.sender === "string" && envelope.sender.trim()
-      ? envelope.sender.trim()
-      : "Remote";
+  function currentFromJid() {
+    return el.jidInput.value.trim() || currentSenderName();
+  }
+
+  function currentToJid() {
+    return el.peerInput.value.trim() || "relay@localhost";
+  }
+
+  function envelopeFrom(envelope) {
+    return typeof envelope.from === "string" && envelope.from.trim()
+      ? envelope.from.trim()
+      : "";
+  }
+
+  function displayNameForJid(jid) {
+    if (!jid) {
+      return "Remote";
+    }
+
+    const bare = jid.split("/")[0];
+    if (jid === currentFromJid() || bare === currentFromJid().split("/")[0]) {
+      return currentSenderName();
+    }
+
+    if (jid.startsWith("ai@") || bare === "ai@localhost") {
+      return "AI agent";
+    }
+
+    return bare.split("@")[0] || jid;
   }
 
   function applyRelayEnvelope(envelope) {
@@ -567,23 +593,23 @@
 
     if (envelope.type === "message") {
       state.remoteText = "";
-      state.remoteSender = envelopeSender(envelope);
+      state.remoteFrom = envelopeFrom(envelope);
       renderRemoteDraft();
-      addMessage("peer", envelope.text ?? "", "received", state.remoteSender);
+      addMessage("peer", envelope.text ?? "", "received", state.remoteFrom);
       return;
     }
 
     state.remoteText = envelope.text ?? "";
-    state.remoteSender = envelopeSender(envelope);
+    state.remoteFrom = envelopeFrom(envelope);
     renderRemoteDraft();
   }
 
-  function addMessage(direction, text, status, sender = null) {
+  function addMessage(direction, text, status, from = null) {
     const conversation = activeConversation();
     conversation.messages.push({
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
       direction,
-      sender,
+      from,
       text,
       status,
       timestamp: new Date()
@@ -646,7 +672,7 @@
       meta.className = "message-meta";
       const sender = message.direction === "self"
         ? currentSenderName()
-        : (message.sender || "Remote");
+        : displayNameForJid(message.from);
       meta.textContent = `${sender} - ${message.status} - ${formatTime(message.timestamp)}`;
       const body = document.createElement("div");
       body.className = "message-body";
@@ -666,7 +692,7 @@
     }
 
     el.remoteDraft.hidden = false;
-    el.remoteDraftName.textContent = `${state.remoteSender || "Remote"} typing`;
+    el.remoteDraftName.textContent = `${displayNameForJid(state.remoteFrom)} typing`;
     el.remoteDraftText.textContent = state.remoteText;
   }
 

@@ -10,7 +10,8 @@ var uri = args.FirstOrDefault(argument => argument.StartsWith("ws://", StringCom
 
 var quietMilliseconds = GetIntArgument(args, "--quiet", 1200);
 var typingDelayMilliseconds = GetIntArgument(args, "--typing-delay", 35);
-var botName = GetTextArgument(args, "--name", "AI agent");
+var botJid = GetTextArgument(args, "--jid", "ai@localhost/bot");
+var peerJid = GetTextArgument(args, "--peer", "edward@localhost/web");
 
 using var client = new ClientWebSocket();
 using var cancellation = new CancellationTokenSource();
@@ -28,14 +29,15 @@ await client.ConnectAsync(uri, cancellation.Token);
 Console.WriteLine("AI bot connected. It only answers lines that start with ai: or @ai.");
 
 var composer = new RttComposer();
-await SendPacketAsync(client, composer.Reset(string.Empty), string.Empty, botName, cancellation.Token);
+await SendPacketAsync(client, composer.Reset(string.Empty), string.Empty, botJid, peerJid, cancellation.Token);
 
 var receiveTask = ReceiveLoopAsync(client, receivedTexts.Writer, cancellation.Token);
 var responseTask = ResponseLoopAsync(
     client,
     composer,
     bot,
-    botName,
+    botJid,
+    peerJid,
     receivedTexts.Reader,
     TimeSpan.FromMilliseconds(quietMilliseconds),
     TimeSpan.FromMilliseconds(typingDelayMilliseconds),
@@ -131,7 +133,8 @@ static async Task ResponseLoopAsync(
     ClientWebSocket client,
     RttComposer composer,
     DemoAiBot bot,
-    string botName,
+    string botJid,
+    string peerJid,
     ChannelReader<string> receivedTexts,
     TimeSpan quietTime,
     TimeSpan typingDelay,
@@ -169,7 +172,7 @@ static async Task ResponseLoopAsync(
         lastAnsweredLine = completedLine;
         var response = bot.Reply(prompt) + Environment.NewLine;
         Console.WriteLine($"AI reply: {response}");
-        await TypeResponseAsync(client, composer, response, botName, typingDelay, cancellationToken);
+        await TypeResponseAsync(client, composer, response, botJid, peerJid, typingDelay, cancellationToken);
     }
 }
 
@@ -214,17 +217,18 @@ static async Task TypeResponseAsync(
     ClientWebSocket client,
     RttComposer composer,
     string response,
-    string sender,
+    string from,
+    string to,
     TimeSpan typingDelay,
     CancellationToken cancellationToken)
 {
-    await SendPacketAsync(client, composer.Reset(string.Empty), string.Empty, sender, cancellationToken);
+    await SendPacketAsync(client, composer.Reset(string.Empty), string.Empty, from, to, cancellationToken);
 
     var draft = string.Empty;
     foreach (var rune in response.EnumerateRunes())
     {
         draft += rune.ToString();
-        await SendPacketAsync(client, composer.Replace(draft), draft, sender, cancellationToken);
+        await SendPacketAsync(client, composer.Replace(draft), draft, from, to, cancellationToken);
         await Task.Delay(typingDelay, cancellationToken);
     }
 }
@@ -233,7 +237,8 @@ static async Task SendPacketAsync(
     ClientWebSocket client,
     RttPacket packet,
     string text,
-    string sender,
+    string from,
+    string to,
     CancellationToken cancellationToken)
 {
     if (client.State != WebSocketState.Open)
@@ -241,7 +246,7 @@ static async Task SendPacketAsync(
         return;
     }
 
-    var envelope = RttJsonEnvelope.FromPacket(packet, text, sender);
+    var envelope = RttJsonEnvelope.FromPacket(packet, text, from, to);
     var bytes = Encoding.UTF8.GetBytes(envelope.ToJson());
     await client.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
 }
