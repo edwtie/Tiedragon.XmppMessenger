@@ -102,6 +102,21 @@ Use `-Configuration Debug` only for local developer diagnostics, not public
 release assets.
 
 Linux setup is documented separately: [Linux Setup](LINUX_SETUP.md).
+Windows setup is documented separately: [Windows Setup](WINDOWS_SETUP.md).
+
+## Deployment Lines
+
+Teletyptel Alpha currently has three practical deployment lines:
+
+| Line | Use When | Main Layout |
+| --- | --- | --- |
+| Windows desktop / WAMP | Quick local test on a developer machine. | `C:\wamp64\www\teletyptel` and `C:\wamp64\bin\teletyptel` |
+| Windows Server | IIS or Apache hosting on a Windows server. | `C:\inetpub\teletyptel` and `C:\Program Files\Teletyptel\bin` |
+| Linux server | Apache/Nginx, PHP, MySQL/MariaDB and systemd. | `/var/www/teletyptel` and `/opt/teletyptel/bin` |
+
+The browser/PHP files are the same in all lines. The platform difference is
+mainly where files are installed, how PHP is hosted, and whether .NET tools are
+started as Windows `.exe` files or Linux apphosts/`.dll` files.
 
 ## Run The Web Chat Demo
 

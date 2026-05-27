@@ -64,6 +64,7 @@ Copy-Item -Force (Join-Path $repo "CHANGELOG.md") $stage
 Copy-Item -Force (Join-Path $repo "LICENSE") $stage
 Copy-Item -Force (Join-Path $repo "docs\GETTING_STARTED.md") $docsRoot
 Copy-Item -Force (Join-Path $repo "docs\USER_GUIDE.md") $docsRoot
+Copy-Item -Force (Join-Path $repo "docs\WINDOWS_SETUP.md") $docsRoot
 Copy-Item -Force (Join-Path $repo "docs\LINUX_SETUP.md") $docsRoot
 Copy-Item -Force (Join-Path $repo "docs\REAL_SERVER_SETUP.md") $docsRoot
 Copy-Item -Force (Join-Path $repo "docs\RELEASE_NOTES_ALPHA1.md") $docsRoot
