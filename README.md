@@ -1,15 +1,27 @@
-# Tiedragon XMPP Messenger
+# Tiedragon Teletyptel 2.0
 
-Tiedragon XMPP Messenger is a planned chat application based on open XMPP standards.
+Tiedragon Teletyptel 2.0 is an alpha XMPP messenger project focused on
+accessible real-time text. The current Alpha 1 codebase is usable as an
+evaluation build: it includes a web chat UI, PHP WebSocket relay, C# XMPP core,
+local STARTTLS fake server, real-server smoke tool and repeatable test suite.
 
-The repository now starts with a small buildable C# core for XEP-0301 real-time text.
-This keeps the first implementation independent from any specific XMPP server,
-desktop UI or mobile framework.
+This is not a production messenger yet. It is a developer/tester release for
+evaluating the protocol stack, live typing model and web/mobile UI direction
+before the public hosted service is opened.
 
 The XMPP client core is built in this repository rather than delegated to a
 third-party XMPP library. Teletyptel 2.0 should own its RFC 6120 stream flow,
 TLS/SASL negotiation, stanza models and XEP-0301 real-time text behavior while
 still using normal platform primitives such as TLS, XML and WebSocket APIs.
+
+## Evaluate Today
+
+- Start here: [Getting Started](docs/GETTING_STARTED.md)
+- User-facing guide: [User Guide](docs/USER_GUIDE.md)
+- Alpha 1 release notes: [Release Notes](docs/RELEASE_NOTES_ALPHA1.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Real server and fake server setup: [Real Server Setup](docs/REAL_SERVER_SETUP.md)
+- XSF readiness checklist: [XSF Software Directory Preparation](docs/XSF_SOFTWARE_DIRECTORY.md)
 
 ## Architecture
 
@@ -19,7 +31,21 @@ Localization note: the current web `.lng` files are a development/fallback
 layer. They are not the same trust boundary as signed LngPdk packages. See
 [Localization Critical Notes](docs/LOCALIZATION_CRITICAL_NOTES.md).
 
-The project goal is a modern messenger with:
+Alpha 1 currently provides:
+
+- browser chat UI with light/dark mode
+- local PHP WebSocket relay for live RTT experiments
+- local account profile storage with MySQL API fallback
+- English and Dutch web UI language files
+- legacy smiley rendering with SVG/GIF assets
+- C# XMPP core for JIDs, stream negotiation, TLS/SASL, bind, roster,
+  presence, chat, service discovery, stream management, registration,
+  receipts, carbons, archive query models and XEP-0301 RTT
+- local fake XMPP server with mandatory STARTTLS
+- real-server smoke tool for TLS, hostname validation, XEP-0077 and
+  two-account chat
+
+The longer-term project goal is a modern messenger with:
 
 - one-to-one chat
 - contact list / roster
@@ -72,7 +98,7 @@ Candidate server stack:
 
 ## Release Lines
 
-- Alpha: basic XMPP login and text chat
+- Alpha 1: local web chat demo, XMPP core and smoke-testable server flows
 - Beta: tester-ready messenger with RTT, group chat and file sharing
 - Release: stable messenger
 
@@ -155,7 +181,7 @@ Expected result:
 All RTT tests passed.
 ```
 
-## PHP WebSocket Demo
+## Web Chat Demo
 
 The repository also contains a small PHP WebSocket relay for browser RTT
 experiments. This is not the final XMPP server layer; it is a local test bridge.
@@ -164,13 +190,14 @@ experiments. This is not the final XMPP server layer; it is a local test bridge.
 php php/rtt-websocket-server.php
 ```
 
-Then open `php/public/index.html` in two browser windows and connect both to:
+Then open `php/public/chat.html` in two browser windows and connect both to:
 
 ```text
 ws://127.0.0.1:8787
 ```
 
-PHP is not bundled with this repository.
+PHP is not bundled with this repository. `php/public/index.html` remains a
+minimal RTT protocol page; `php/public/chat.html` is the preferred Alpha 1 UI.
 
 ## C# WebSocket Console Demo
 
@@ -233,3 +260,7 @@ Options:
 ```bash
 dotnet run --project samples/Tiedragon.XmppMessenger.AiBotConsole/Tiedragon.XmppMessenger.AiBotConsole.csproj -- --quiet 1200 --typing-delay 35
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
