@@ -470,6 +470,72 @@ public sealed class XmppStreamClient : IAsyncDisposable
             cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<XmppHttpUploadSlot> RequestHttpUploadSlotAsync(
+        XmppAddress uploadService,
+        string fileName,
+        long size,
+        TimeSpan timeout,
+        string? contentType = null,
+        XmppHttpUploadPurpose purpose = XmppHttpUploadPurpose.Default,
+        string id = "upload-slot-1",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendIqAndWaitAsync(
+            XmppHttpFileUpload.CreateSlotRequest(id, uploadService, fileName, size, contentType, purpose),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+
+        if (XmppHttpFileUpload.TryParseSlotResult(result, out var slot) && slot is not null)
+        {
+            return slot;
+        }
+
+        throw new XmppProtocolException(
+            XmppProtocolErrorKind.IqError,
+            "The HTTP upload response was not a valid XEP-0363 slot result.",
+            result.Payload);
+    }
+
+    public async Task<IReadOnlyList<uint>> RequestOmemoDeviceListAsync(
+        XmppAddress contact,
+        TimeSpan timeout,
+        string id = "omemo-devices-1",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendIqAndWaitAsync(
+            XmppOmemo.CreateDeviceListRequest(id, contact),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+
+        if (XmppOmemo.TryParseDeviceList(result, out var deviceIds))
+        {
+            return deviceIds;
+        }
+
+        throw new XmppProtocolException(
+            XmppProtocolErrorKind.IqError,
+            "The OMEMO device list response was not valid.",
+            result.Payload);
+    }
+
+    public Task SendMultiUserChatJoinAsync(
+        XmppAddress room,
+        string nickname,
+        string? password = null,
+        int? historyMaxChars = null,
+        CancellationToken cancellationToken = default)
+    {
+        return SendElementAsync(
+            XmppMultiUserChat.CreateJoinPresence(room, nickname, password, historyMaxChars),
+            cancellationToken);
+    }
+
+    public Task SendJingleAsync(XmppIq jingleIq, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jingleIq);
+        return SendElementAsync(jingleIq.ToXml(), cancellationToken);
+    }
+
     public Task SendChatMessageAsync(XmppChatMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);

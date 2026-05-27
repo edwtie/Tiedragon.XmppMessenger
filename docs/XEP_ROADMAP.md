@@ -27,23 +27,23 @@ that core.
 
 | XEP | Name | Purpose | Status |
 | --- | --- | --- | --- |
-| XEP-0384 | OMEMO Encryption | Modern end-to-end encryption. | Later |
+| XEP-0384 | OMEMO Encryption | Modern end-to-end encryption. | Wire model started |
 | XEP-0454 | OMEMO Media Sharing | Encrypted media sharing. | Later |
 
 ## Group Chat And Files
 
 | XEP | Name | Purpose | Status |
 | --- | --- | --- | --- |
-| XEP-0045 | Multi-User Chat | Group chat rooms. | Later |
-| XEP-0363 | HTTP File Upload | Upload files through server-advertised HTTP slots. | Later |
+| XEP-0045 | Multi-User Chat | Group chat rooms. | Wire model started |
+| XEP-0363 | HTTP File Upload | Upload files through server-advertised HTTP slots. | Wire model started |
 
 ## Calls And Media
 
 | XEP | Name | Purpose | Status |
 | --- | --- | --- | --- |
-| XEP-0166 | Jingle | Session signaling. | Future |
-| XEP-0167 | Jingle RTP Sessions | Audio/video RTP session descriptions. | Future |
-| XEP-0176 | Jingle ICE-UDP Transport | ICE candidates for NAT traversal. | Future |
+| XEP-0166 | Jingle | Session signaling. | Wire model started |
+| XEP-0167 | Jingle RTP Sessions | Audio/video RTP session descriptions. | RTP content model started |
+| XEP-0176 | Jingle ICE-UDP Transport | ICE candidates for NAT traversal. | Empty transport model started |
 | XEP-0177 | Jingle Raw UDP Transport | Simple UDP transport. | Future |
 | XEP-0343 | Signaling WebRTC DataChannels in Jingle | WebRTC data channels through Jingle. | Future |
 
@@ -87,6 +87,7 @@ layer.
 6. XEP-0280 message carbons.
 7. XEP-0313 archive.
 8. OMEMO only after the message lifecycle is stable.
+9. MUC, HTTP upload and Jingle UI flows after the protocol wire models are covered.
 
 ## Testing Rule
 

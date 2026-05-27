@@ -179,6 +179,58 @@ item is implemented, tested and documented.
 - [x] Parse forwarded archived messages.
 - [x] Paging/result-set management.
 
+## XEP-0045 - Multi-User Chat
+
+- [x] Join room presence serializer.
+- [x] Leave room presence serializer.
+- [x] Groupchat message serializer.
+- [x] Groupchat message parser.
+- [x] Direct invitation serializer.
+- [x] `XmppStreamClient` join helper.
+- [ ] Room discovery/items helper.
+- [ ] Room configuration forms.
+- [ ] Moderation/admin flows.
+- [ ] Interoperability smoke with Prosody/ejabberd MUC.
+
+## XEP-0363 - HTTP File Upload
+
+- [x] Slot request serializer.
+- [x] Slot result parser.
+- [x] Allowed PUT header filtering.
+- [x] `XmppStreamClient` slot request helper.
+- [ ] HTTP PUT upload executor.
+- [ ] Send uploaded URL as message attachment.
+- [ ] Server max-file-size discovery.
+- [ ] Interoperability smoke with upload component.
+
+## XEP-0384 - OMEMO Encryption
+
+- [x] OMEMO namespace constants for current `urn:xmpp:omemo:2` wire format.
+- [x] Device list request serializer.
+- [x] Device list parser.
+- [x] Bundle request serializer.
+- [x] Encrypted message wrapper serializer/parser.
+- [x] `XmppStreamClient` device list helper.
+- [ ] X3DH key agreement implementation.
+- [ ] Double Ratchet session store.
+- [ ] Payload encryption/decryption.
+- [ ] Trust/fingerprint UI model.
+- [ ] Interoperability smoke with existing OMEMO clients.
+
+## XEP-0166/0167/0176 - Jingle Calls
+
+- [x] Jingle session-initiate serializer.
+- [x] Jingle session-accept serializer.
+- [x] Jingle session-terminate serializer.
+- [x] RTP content/payload type serializer.
+- [x] ICE-UDP transport placeholder.
+- [x] Jingle parser for action, sid and content.
+- [x] `XmppStreamClient` Jingle send helper.
+- [ ] ICE candidate serialization.
+- [ ] WebRTC peer connection bridge.
+- [ ] Audio/video permission and device UI.
+- [ ] Interoperability smoke with existing Jingle client.
+
 ## Tooling And Samples
 
 - [x] WinForms RTT demo.

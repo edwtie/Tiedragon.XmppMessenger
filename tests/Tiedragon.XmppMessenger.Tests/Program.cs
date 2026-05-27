@@ -110,6 +110,10 @@ var tests = new (string Name, Action Test)[]
     ("XMPP message archive query serializes paging", XmppMessageArchiveQuerySerializesPaging),
     ("XMPP message archive parses forwarded result", XmppMessageArchiveParsesForwardedResult),
     ("XMPP message archive parses fin result set", XmppMessageArchiveParsesFinResultSet),
+    ("XMPP multi-user chat serializes join and group message", XmppMultiUserChatSerializesJoinAndGroupMessage),
+    ("XMPP HTTP file upload serializes request and parses slot", XmppHttpFileUploadSerializesRequestAndParsesSlot),
+    ("XMPP OMEMO serializes encrypted message and parses devices", XmppOmemoSerializesEncryptedMessageAndParsesDevices),
+    ("XMPP Jingle serializes session initiate and parse", XmppJingleSerializesSessionInitiateAndParse),
     ("XMPP stream management state tracks counts", XmppStreamManagementStateTracksCounts),
     ("XMPP chat message parses stanza", XmppChatMessageParsesStanza),
     ("XMPP presence parses stanza", XmppPresenceParsesStanza),
@@ -2870,6 +2874,133 @@ static void AgentMarkerDistinguishesCaptions()
     Equal("speech-to-text", marker.Source);
     Equal(0.8, marker.Confidence);
     False(marker.IsUncertain);
+}
+
+static void XmppMultiUserChatSerializesJoinAndGroupMessage()
+{
+    var room = XmppAddress.Parse("team@conference.example.org");
+    var join = XmppMultiUserChat.CreateJoinPresence(room, "Edward", historyMaxChars: 0);
+
+    Equal("presence", join.Name.LocalName);
+    Equal("team@conference.example.org/Edward", join.Attribute("to")?.Value);
+    True(join.ToString(SaveOptions.DisableFormatting).Contains("http://jabber.org/protocol/muc", StringComparison.Ordinal));
+    True(join.ToString(SaveOptions.DisableFormatting).Contains("maxchars=\"0\"", StringComparison.Ordinal));
+
+    var group = XmppMultiUserChat.CreateGroupMessage(room, "Hallo groep", "muc-1");
+    Equal("groupchat", group.Attribute("type")?.Value);
+    Equal("team@conference.example.org", group.Attribute("to")?.Value);
+
+    var incoming = XElement.Parse("""
+        <message xmlns="jabber:client" from="team@conference.example.org/Anna" to="edward@example.org/web" type="groupchat" id="m1">
+          <body>Hoi</body>
+        </message>
+        """);
+    True(XmppMultiUserChat.TryParseGroupMessage(incoming, out var parsed));
+    Equal("team@conference.example.org", parsed!.Room!.Bare);
+    Equal("Anna", parsed.Nickname);
+    Equal("Hoi", parsed.Body);
+}
+
+static void XmppHttpFileUploadSerializesRequestAndParsesSlot()
+{
+    var iq = XmppHttpFileUpload.CreateSlotRequest(
+        "slot-1",
+        XmppAddress.Parse("upload.example.org"),
+        "foto.jpg",
+        12345,
+        "image/jpeg",
+        XmppHttpUploadPurpose.Message);
+    var xml = iq.ToXml().ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("urn:xmpp:http:upload:0", StringComparison.Ordinal));
+    True(xml.Contains("filename=\"foto.jpg\"", StringComparison.Ordinal));
+    True(xml.Contains("content-type=\"image/jpeg\"", StringComparison.Ordinal));
+    True(xml.Contains("urn:xmpp:http:upload:purpose:0", StringComparison.Ordinal));
+
+    var result = XmppIq.TryParse("""
+        <iq xmlns="jabber:client" type="result" id="slot-1">
+          <slot xmlns="urn:xmpp:http:upload:0">
+            <put url="https://upload.example.org/u/foto.jpg">
+              <header name="Authorization">Bearer token</header>
+              <header name="X-Ignored">no</header>
+            </put>
+            <get url="https://download.example.org/u/foto.jpg"/>
+          </slot>
+        </iq>
+        """, out var parsedIq);
+
+    True(result);
+    True(XmppHttpFileUpload.TryParseSlotResult(parsedIq!, out var slot));
+    Equal("https://upload.example.org/u/foto.jpg", slot!.PutUrl.ToString());
+    Equal("https://download.example.org/u/foto.jpg", slot.GetUrl.ToString());
+    Equal(1, slot.Headers.Count);
+    Equal("Authorization", slot.Headers[0].Name);
+}
+
+static void XmppOmemoSerializesEncryptedMessageAndParsesDevices()
+{
+    var message = XmppOmemo.CreateEncryptedMessage(
+        XmppAddress.Parse("anna@example.org/phone"),
+        123,
+        [new XmppOmemoKeyTransport(456, "cipher", IsPreKey: true)],
+        "payload",
+        "omemo-1");
+    var xml = message.ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("urn:xmpp:omemo:2", StringComparison.Ordinal));
+    True(xml.Contains("sid=\"123\"", StringComparison.Ordinal));
+    True(xml.Contains("rid=\"456\"", StringComparison.Ordinal));
+
+    True(XmppOmemo.TryParseEncryptedMessage(message, out var encrypted));
+    Equal((uint)123, encrypted!.SenderDeviceId);
+    Equal((uint)456, encrypted.Keys[0].RecipientDeviceId);
+    True(encrypted.Keys[0].IsPreKey);
+    Equal("payload", encrypted.Payload);
+
+    True(XmppIq.TryParse("""
+        <iq xmlns="jabber:client" type="result" id="devices-1">
+          <pubsub xmlns="http://jabber.org/protocol/pubsub">
+            <items node="urn:xmpp:omemo:2:devices">
+              <item id="current">
+                <devices xmlns="urn:xmpp:omemo:2">
+                  <device id="123"/>
+                  <device id="456"/>
+                </devices>
+              </item>
+            </items>
+          </pubsub>
+        </iq>
+        """, out var devicesIq));
+    True(XmppOmemo.TryParseDeviceList(devicesIq!, out var devices));
+    Equal(2, devices.Count);
+    Equal((uint)123, devices[0]);
+    Equal((uint)456, devices[1]);
+}
+
+static void XmppJingleSerializesSessionInitiateAndParse()
+{
+    var content = XmppJingle.CreateRtpContent(
+        "audio",
+        "audio",
+        [new XmppJinglePayloadType(111, "opus", 48000, 2)]);
+    var iq = XmppJingle.CreateSessionInitiate(
+        "jingle-1",
+        XmppAddress.Parse("anna@example.org/phone"),
+        "sid-1",
+        "initiator",
+        [content]);
+    var xml = iq.ToXml().ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("urn:xmpp:jingle:1", StringComparison.Ordinal));
+    True(xml.Contains("action=\"session-initiate\"", StringComparison.Ordinal));
+    True(xml.Contains("urn:xmpp:jingle:apps:rtp:1", StringComparison.Ordinal));
+    True(xml.Contains("name=\"opus\"", StringComparison.Ordinal));
+
+    True(XmppJingle.TryParse(iq, out var session));
+    Equal("sid-1", session!.Sid);
+    Equal("session-initiate", session.Action);
+    Equal(1, session.Contents.Count);
+    Equal("audio", session.Contents[0].Name);
 }
 
 static T IsType<T>(object value)
