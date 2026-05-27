@@ -202,7 +202,7 @@ item is implemented, tested and documented.
 - [x] Alpha web local upload endpoint and chat attachment message rendering.
 - [x] HTTP PUT upload executor.
 - [x] Send uploaded URL as message attachment with body fallback and XEP-0066 OOB payload.
-- [ ] Server max-file-size discovery from XEP-0128 data forms.
+- [x] Server max-file-size discovery from XEP-0128 data forms.
 - [x] Fake-server upload service disco and slot response smoke path.
 
 ## XEP-0384 - OMEMO Encryption

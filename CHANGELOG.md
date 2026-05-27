@@ -7,7 +7,8 @@
 - XEP-0045 Multi-User Chat helpers for room join/leave presence, groupchat
   messages and direct invitations.
 - XEP-0363 HTTP File Upload support for slot requests, HTTPS slot parsing,
-  PUT execution, allowed-header filtering and OOB message-link creation.
+  PUT execution, allowed-header filtering, server `max-file-size` discovery and
+  OOB message-link creation.
 - XEP-0384 OMEMO wire scaffolding for device lists, bundle requests and
   encrypted message wrappers.
 - XEP-0166/0167/0176 Jingle scaffolding for RTP session signaling and an

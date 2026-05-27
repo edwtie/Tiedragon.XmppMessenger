@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace Tiedragon.XmppMessenger.Core.Xmpp;
@@ -99,12 +100,43 @@ public static class XmppHttpFileUpload
             .Element(XName.Get("error", XmppXmlNames.ClientNamespace))
             ?.Element(XName.Get("file-too-large", NamespaceName));
         var value = fileTooLarge?.Element(XName.Get("max-file-size", NamespaceName))?.Value;
-        if (long.TryParse(value, out var parsed))
+        if (long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))
         {
             maxFileSize = parsed;
         }
 
         return fileTooLarge is not null;
+    }
+
+    public static bool TryGetAdvertisedMaxFileSize(
+        XmppServiceDiscoveryInfo info,
+        out long? maxFileSize)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        maxFileSize = null;
+
+        foreach (var form in info.DataForms)
+        {
+            if (!string.Equals(form.FormType, NamespaceName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var value = form.GetFirstValue("max-file-size");
+            if (long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+                && parsed >= 0)
+            {
+                maxFileSize = parsed;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static long? GetAdvertisedMaxFileSize(XmppServiceDiscoveryInfo info)
+    {
+        return TryGetAdvertisedMaxFileSize(info, out var maxFileSize) ? maxFileSize : null;
     }
 
     public static async Task<XmppHttpUploadCompletion> UploadAsync(

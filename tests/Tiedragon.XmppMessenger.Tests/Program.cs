@@ -112,6 +112,7 @@ var tests = new (string Name, Action Test)[]
     ("XMPP message archive parses fin result set", XmppMessageArchiveParsesFinResultSet),
     ("XMPP multi-user chat serializes join and group message", XmppMultiUserChatSerializesJoinAndGroupMessage),
     ("XMPP HTTP file upload serializes request and parses slot", XmppHttpFileUploadSerializesRequestAndParsesSlot),
+    ("XMPP HTTP file upload discovers max file size", XmppHttpFileUploadDiscoversMaxFileSize),
     ("XMPP HTTP file upload executes PUT", XmppHttpFileUploadExecutesPut),
     ("XMPP HTTP file upload creates message attachment", XmppHttpFileUploadCreatesMessageAttachment),
     ("XMPP OMEMO serializes encrypted message and parses devices", XmppOmemoSerializesEncryptedMessageAndParsesDevices),
@@ -2164,6 +2165,14 @@ static void XmppServiceDiscoveryParsesInfoResult()
             <identity category="server" type="im" name="Example XMPP"/>
             <feature var="urn:xmpp:rtt:0"/>
             <feature var="urn:xmpp:receipts"/>
+            <x xmlns="jabber:x:data" type="result">
+              <field var="FORM_TYPE" type="hidden">
+                <value>urn:xmpp:http:upload:0</value>
+              </field>
+              <field var="max-file-size">
+                <value>5242880</value>
+              </field>
+            </x>
           </query>
         </iq>
         """;
@@ -2174,6 +2183,8 @@ static void XmppServiceDiscoveryParsesInfoResult()
     Equal("im", info.Identities.Single().Type);
     True(info.Supports("urn:xmpp:rtt:0"));
     True(info.Supports("urn:xmpp:receipts"));
+    Equal("urn:xmpp:http:upload:0", info.DataForms.Single().FormType);
+    Equal("5242880", info.DataForms.Single().GetFirstValue("max-file-size"));
 }
 
 static void XmppServiceDiscoveryChecksRttCapability()
@@ -2938,6 +2949,42 @@ static void XmppHttpFileUploadSerializesRequestAndParsesSlot()
     Equal(1, slot.Headers.Count);
     Equal("Authorization", slot.Headers[0].Name);
     True(XmppHttpFileUpload.SupportsHttpUpload(new XmppServiceDiscoveryInfo(null, [], [XmppHttpFileUpload.NamespaceName])));
+}
+
+static void XmppHttpFileUploadDiscoversMaxFileSize()
+{
+    var result = XmppIq.TryParse("""
+        <iq xmlns="jabber:client" type="result" id="disco-upload">
+          <query xmlns="http://jabber.org/protocol/disco#info">
+            <identity category="store" type="file" name="HTTP File Upload"/>
+            <feature var="urn:xmpp:http:upload:0"/>
+            <x xmlns="jabber:x:data" type="result">
+              <field var="FORM_TYPE" type="hidden">
+                <value>urn:xmpp:http:upload:0</value>
+              </field>
+              <field var="max-file-size">
+                <value>5242880</value>
+              </field>
+            </x>
+          </query>
+        </iq>
+        """, out var iq);
+
+    True(result);
+    True(XmppServiceDiscovery.TryParseInfoResult(iq!, out var info));
+    True(XmppHttpFileUpload.TryGetAdvertisedMaxFileSize(info!, out var maxFileSize));
+    Equal(5_242_880L, maxFileSize!.Value);
+    Equal(5_242_880L, XmppHttpFileUpload.GetAdvertisedMaxFileSize(info!)!.Value);
+    XmppHttpFileUpload.EnsureRequestAllowed("ok.txt", 5_242_880, "text/plain", maxFileSize);
+
+    try
+    {
+        XmppHttpFileUpload.EnsureRequestAllowed("too-large.txt", 5_242_881, "text/plain", maxFileSize);
+        throw new InvalidOperationException("Expected file size validation to fail.");
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+    }
 }
 
 static void XmppHttpFileUploadExecutesPut()

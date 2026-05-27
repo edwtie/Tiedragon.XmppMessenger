@@ -318,6 +318,14 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
                     <feature var="urn:xmpp:receipts"/>
                     <feature var="urn:xmpp:http:upload:0"/>
                     <feature var="urn:xmpp:http:upload:purpose:0#message"/>
+                    <x xmlns="jabber:x:data" type="result">
+                      <field var="FORM_TYPE" type="hidden">
+                        <value>urn:xmpp:http:upload:0</value>
+                      </field>
+                      <field var="max-file-size">
+                        <value>10485760</value>
+                      </field>
+                    </x>
                   </query>
                 </iq>
                 """, cancellationToken);
