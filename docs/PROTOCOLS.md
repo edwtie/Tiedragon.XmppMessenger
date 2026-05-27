@@ -77,6 +77,17 @@ Real-server setup guide:
 | XEP-0352 | Client state indication. |
 | XEP-0363 | HTTP file upload. |
 
+## XEP-0363 HTTP File Upload
+
+Teletyptel implements the client side in the same sequence as the standard:
+
+1. Discover an upload service through XEP-0030.
+2. Send an IQ-get slot request with `filename`, `size` and optional `content-type`.
+3. Parse an HTTPS PUT URL and HTTPS GET URL from the slot result.
+4. Upload bytes through HTTP PUT with exact `Content-Length`, `Content-Type` and only the allowed headers `Authorization`, `Cookie` and `Expires`.
+5. Send the GET URL to the recipient as a normal message body plus a `jabber:x:oob` URL payload for clients that understand out-of-band links.
+
+The fake XMPP server advertises `urn:xmpp:http:upload:0` and returns slot responses for smoke testing. The local PHP upload endpoint remains a browser demo path; real XMPP file upload should use the XEP-0363 slot and PUT flow.
 ## XEP-0245 `/me` Command
 
 `XmppMeCommand` keeps the XEP-0245 behavior intentionally simple: `/me ` is

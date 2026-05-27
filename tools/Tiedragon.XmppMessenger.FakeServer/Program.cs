@@ -35,7 +35,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 var listener = new TcpListener(IPAddress.Parse(options.ListenAddress), options.Port);
 listener.Start();
 Console.WriteLine($"Fake XMPP server listening on {options.ListenAddress}:{options.Port} for domain {options.Domain}");
-Console.WriteLine("Features: STARTTLS required, XEP-0077, SASL PLAIN, resource bind, empty roster, direct chat relay");
+Console.WriteLine("Features: STARTTLS required, XEP-0077, XEP-0363 slot responses, SASL PLAIN, resource bind, empty roster, direct chat relay");
 Console.WriteLine($"Certificate SHA-256: {Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256)).ToLowerInvariant()}");
 
 try
@@ -312,15 +312,50 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
                 <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
                   <query xmlns="http://jabber.org/protocol/disco#info">
                     <identity category="server" type="im" name="Tiedragon Fake XMPP Server"/>
+                    <identity category="store" type="file" name="HTTP File Upload"/>
                     <feature var="jabber:iq:register"/>
                     <feature var="urn:xmpp:rtt:0"/>
                     <feature var="urn:xmpp:receipts"/>
+                    <feature var="urn:xmpp:http:upload:0"/>
+                    <feature var="urn:xmpp:http:upload:purpose:0#message"/>
                   </query>
                 </iq>
                 """, cancellationToken);
             return;
         }
 
+        if (payload?.Name == XName.Get("request", "urn:xmpp:http:upload:0") && type == "get")
+        {
+            var fileName = (string?)payload.Attribute("filename") ?? "upload.bin";
+            var size = (string?)payload.Attribute("size") ?? "0";
+            if (!long.TryParse(size, out var parsedSize) || parsedSize < 0 || parsedSize > 10_485_760)
+            {
+                await WriteAsync($"""
+                    <iq xmlns="jabber:client" type="error" id="{Escape(id)}">
+                      <request xmlns="urn:xmpp:http:upload:0" filename="{Escape(fileName)}" size="{Escape(size)}"/>
+                      <error type="modify">
+                        <not-acceptable xmlns="urn:ietf:params:xml:ns:xmpp-stanzas"/>
+                        <file-too-large xmlns="urn:xmpp:http:upload:0"><max-file-size>10485760</max-file-size></file-too-large>
+                      </error>
+                    </iq>
+                    """, cancellationToken);
+                return;
+            }
+
+            var token = Guid.NewGuid().ToString("N");
+            var escapedName = Uri.EscapeDataString(fileName);
+            await WriteAsync($"""
+                <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
+                  <slot xmlns="urn:xmpp:http:upload:0">
+                    <put url="https://upload.{Escape(state.Domain)}/fake/{token}/{escapedName}">
+                      <header name="Expires">{DateTimeOffset.UtcNow.AddMinutes(5):yyyy-MM-ddTHH:mm:ssZ}</header>
+                    </put>
+                    <get url="https://download.{Escape(state.Domain)}/fake/{token}/{escapedName}"/>
+                  </slot>
+                </iq>
+                """, cancellationToken);
+            return;
+        }
         await WriteAsync($"""
             <iq xmlns="jabber:client" type="error" id="{Escape(id)}">
               <error type="cancel"><service-unavailable xmlns="urn:ietf:params:xml:ns:xmpp-stanzas"/></error>

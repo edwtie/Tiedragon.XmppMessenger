@@ -6,7 +6,8 @@
 
 - XEP-0045 Multi-User Chat helpers for room join/leave presence, groupchat
   messages and direct invitations.
-- XEP-0363 HTTP File Upload helpers for slot requests and slot result parsing.
+- XEP-0363 HTTP File Upload support for slot requests, HTTPS slot parsing,
+  PUT execution, allowed-header filtering and OOB message-link creation.
 - XEP-0384 OMEMO wire scaffolding for device lists, bundle requests and
   encrypted message wrappers.
 - XEP-0166/0167/0176 Jingle scaffolding for RTP session signaling and an
@@ -23,7 +24,7 @@
 - Voice/video media transport, WebRTC integration and ICE candidate exchange
   are not implemented yet.
 - Web file upload currently stores files locally under the PHP public upload
-  directory; XEP-0363 server slot execution is still future work.
+  directory; browser-to-real-XMPP XEP-0363 wiring still needs UI integration.
 
 ## 0.1.0-alpha1 - 2026-05-27
 

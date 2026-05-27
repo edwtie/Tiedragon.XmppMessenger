@@ -7,8 +7,30 @@ public sealed record XmppChatMessage(
     string Body,
     XmppAddress? From = null,
     string? Id = null,
-    XmppMessageType Type = XmppMessageType.Chat)
+    XmppMessageType Type = XmppMessageType.Chat,
+    Uri? OutOfBandUrl = null,
+    string? OutOfBandDescription = null)
 {
+    public const string OutOfBandNamespace = "jabber:x:oob";
+
+    public static XmppChatMessage CreateOutOfBandMessage(
+        XmppAddress to,
+        Uri url,
+        string? description = null,
+        string? id = null,
+        XmppMessageType type = XmppMessageType.Chat)
+    {
+        ArgumentNullException.ThrowIfNull(to);
+        ArgumentNullException.ThrowIfNull(url);
+        return new XmppChatMessage(
+            to,
+            url.ToString(),
+            Id: id,
+            Type: type,
+            OutOfBandUrl: url,
+            OutOfBandDescription: description);
+    }
+
     public static bool TryParse(XElement element, out XmppChatMessage? message)
     {
         message = null;
@@ -22,12 +44,17 @@ public sealed record XmppChatMessage(
         }
 
         XmppAddress.TryParse((string?)element.Attribute("from"), out var from);
+        var outOfBand = element.Element(XName.Get("x", OutOfBandNamespace));
+        Uri.TryCreate(outOfBand?.Element(XName.Get("url", OutOfBandNamespace))?.Value, UriKind.Absolute, out var outOfBandUrl);
+
         message = new XmppChatMessage(
             To: to,
             Body: element.Element(XName.Get("body", XmppXmlNames.ClientNamespace))?.Value ?? string.Empty,
             From: from,
             Id: (string?)element.Attribute("id"),
-            Type: type);
+            Type: type,
+            OutOfBandUrl: outOfBandUrl,
+            OutOfBandDescription: outOfBand?.Element(XName.Get("desc", OutOfBandNamespace))?.Value);
         return true;
     }
 
@@ -66,6 +93,18 @@ public sealed record XmppChatMessage(
         if (!string.IsNullOrEmpty(Body))
         {
             element.Add(new XElement(XName.Get("body", XmppXmlNames.ClientNamespace), Body));
+        }
+
+        if (OutOfBandUrl is not null)
+        {
+            var x = new XElement(XName.Get("x", OutOfBandNamespace),
+                new XElement(XName.Get("url", OutOfBandNamespace), OutOfBandUrl.ToString()));
+            if (!string.IsNullOrWhiteSpace(OutOfBandDescription))
+            {
+                x.Add(new XElement(XName.Get("desc", OutOfBandNamespace), OutOfBandDescription));
+            }
+
+            element.Add(x);
         }
 
         return element;

@@ -112,6 +112,8 @@ var tests = new (string Name, Action Test)[]
     ("XMPP message archive parses fin result set", XmppMessageArchiveParsesFinResultSet),
     ("XMPP multi-user chat serializes join and group message", XmppMultiUserChatSerializesJoinAndGroupMessage),
     ("XMPP HTTP file upload serializes request and parses slot", XmppHttpFileUploadSerializesRequestAndParsesSlot),
+    ("XMPP HTTP file upload executes PUT", XmppHttpFileUploadExecutesPut),
+    ("XMPP HTTP file upload creates message attachment", XmppHttpFileUploadCreatesMessageAttachment),
     ("XMPP OMEMO serializes encrypted message and parses devices", XmppOmemoSerializesEncryptedMessageAndParsesDevices),
     ("XMPP Jingle serializes session initiate and parse", XmppJingleSerializesSessionInitiateAndParse),
     ("XMPP stream management state tracks counts", XmppStreamManagementStateTracksCounts),
@@ -2935,6 +2937,55 @@ static void XmppHttpFileUploadSerializesRequestAndParsesSlot()
     Equal("https://download.example.org/u/foto.jpg", slot.GetUrl.ToString());
     Equal(1, slot.Headers.Count);
     Equal("Authorization", slot.Headers[0].Name);
+    True(XmppHttpFileUpload.SupportsHttpUpload(new XmppServiceDiscoveryInfo(null, [], [XmppHttpFileUpload.NamespaceName])));
+}
+
+static void XmppHttpFileUploadExecutesPut()
+{
+    var handler = new RecordingHttpHandler();
+    using var client = new HttpClient(handler);
+    using var payload = new MemoryStream(Encoding.UTF8.GetBytes("hello"));
+    var payloadLength = payload.Length;
+    var slot = new XmppHttpUploadSlot(
+        new Uri("https://upload.example.org/slot/hello.txt"),
+        new Uri("https://download.example.org/slot/hello.txt"),
+        [
+            new XmppHttpUploadHeader("Authorization", "Bearer token"),
+            new XmppHttpUploadHeader("X-Ignore", "no")
+        ]);
+
+    var completion = XmppHttpFileUpload.UploadAsync(
+        slot,
+        payload,
+        payloadLength,
+        "text/plain",
+        client).GetAwaiter().GetResult();
+
+    Equal(HttpMethod.Put, handler.Method!);
+    Equal(slot.PutUrl, handler.RequestUri!);
+    Equal("Bearer token", handler.Authorization!);
+    Equal("text/plain", handler.ContentType!);
+    Equal(payloadLength, handler.ContentLength!.Value);
+    False(handler.IgnoredHeaderPresent);
+    Equal(slot.GetUrl, completion.GetUrl);
+}
+
+static void XmppHttpFileUploadCreatesMessageAttachment()
+{
+    var upload = new XmppHttpUploadCompletion(new Uri("https://download.example.org/u/foto.jpg"), 123, "image/jpeg");
+    var message = XmppHttpFileUpload.CreateFileMessage(
+        XmppAddress.Parse("anna@example.org/phone"),
+        upload,
+        "foto.jpg",
+        "file-1");
+    var xml = message.ToXml().ToString(SaveOptions.DisableFormatting);
+
+    True(xml.Contains("jabber:x:oob", StringComparison.Ordinal));
+    True(xml.Contains("https://download.example.org/u/foto.jpg", StringComparison.Ordinal));
+    True(xml.Contains("foto.jpg", StringComparison.Ordinal));
+    True(XmppChatMessage.TryParse(message.ToXml(), out var parsed));
+    Equal(upload.GetUrl, parsed!.OutOfBandUrl!);
+    Equal("foto.jpg", parsed.OutOfBandDescription!);
 }
 
 static void XmppOmemoSerializesEncryptedMessageAndParsesDevices()
@@ -3076,5 +3127,32 @@ sealed class FakeWebSocketTransport : IXmppWebSocketTransport
     public ValueTask DisposeAsync()
     {
         return ValueTask.CompletedTask;
+    }
+}
+
+sealed class RecordingHttpHandler : HttpMessageHandler
+{
+    public HttpMethod? Method { get; private set; }
+
+    public Uri? RequestUri { get; private set; }
+
+    public string? Authorization { get; private set; }
+
+    public string? ContentType { get; private set; }
+
+    public long? ContentLength { get; private set; }
+
+    public bool IgnoredHeaderPresent { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Method = request.Method;
+        RequestUri = request.RequestUri;
+        Authorization = request.Headers.Authorization?.ToString();
+        ContentType = request.Content?.Headers.ContentType?.ToString();
+        ContentLength = request.Content?.Headers.ContentLength;
+        IgnoredHeaderPresent = request.Headers.Contains("X-Ignore")
+            || (request.Content?.Headers.Contains("X-Ignore") ?? false);
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Created));
     }
 }

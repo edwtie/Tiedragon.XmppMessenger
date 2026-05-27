@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Xml.Linq;
 
 namespace Tiedragon.XmppMessenger.Core.Xmpp;
@@ -7,6 +9,14 @@ public static class XmppHttpFileUpload
     public const string NamespaceName = "urn:xmpp:http:upload:0";
 
     public const string PurposeNamespaceName = "urn:xmpp:http:upload:purpose:0";
+
+    public const string PurposeMessageFeature = PurposeNamespaceName + "#message";
+
+    public const string PurposeProfileFeature = PurposeNamespaceName + "#profile";
+
+    public const string PurposeEphemeralFeature = PurposeNamespaceName + "#ephemeral";
+
+    public const string PurposePermanentFeature = PurposeNamespaceName + "#permanent";
 
     private static readonly HashSet<string> AllowedHeaderNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,12 +35,7 @@ public static class XmppHttpFileUpload
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentNullException.ThrowIfNull(uploadService);
-        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-
-        if (size < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(size), "File size cannot be negative.");
-        }
+        EnsureRequestAllowed(fileName, size, contentType);
 
         var request = new XElement(XName.Get("request", NamespaceName),
             new XAttribute("filename", fileName),
@@ -41,9 +46,10 @@ public static class XmppHttpFileUpload
             request.SetAttributeValue("content-type", contentType);
         }
 
-        if (purpose is XmppHttpUploadPurpose.Message or XmppHttpUploadPurpose.Profile)
+        var purposeElement = PurposeElementName(purpose);
+        if (purposeElement is not null)
         {
-            request.Add(new XElement(XName.Get(purpose == XmppHttpUploadPurpose.Message ? "message" : "profile", PurposeNamespaceName)));
+            request.Add(new XElement(XName.Get(purposeElement, PurposeNamespaceName)));
         }
 
         return new XmppIq(XmppIqType.Get, id, request, To: uploadService);
@@ -63,7 +69,9 @@ public static class XmppHttpFileUpload
         var putUrl = (string?)put?.Attribute("url");
         var getUrl = (string?)get?.Attribute("url");
         if (!Uri.TryCreate(putUrl, UriKind.Absolute, out var putUri)
-            || !Uri.TryCreate(getUrl, UriKind.Absolute, out var getUri))
+            || !Uri.TryCreate(getUrl, UriKind.Absolute, out var getUri)
+            || putUri.Scheme != Uri.UriSchemeHttps
+            || getUri.Scheme != Uri.UriSchemeHttps)
         {
             return false;
         }
@@ -79,6 +87,138 @@ public static class XmppHttpFileUpload
         return true;
     }
 
+    public static bool TryParseFileTooLarge(XmppIq iq, out long? maxFileSize)
+    {
+        maxFileSize = null;
+        if (iq.Type != XmppIqType.Error)
+        {
+            return false;
+        }
+
+        var fileTooLarge = iq.ToXml()
+            .Element(XName.Get("error", XmppXmlNames.ClientNamespace))
+            ?.Element(XName.Get("file-too-large", NamespaceName));
+        var value = fileTooLarge?.Element(XName.Get("max-file-size", NamespaceName))?.Value;
+        if (long.TryParse(value, out var parsed))
+        {
+            maxFileSize = parsed;
+        }
+
+        return fileTooLarge is not null;
+    }
+
+    public static async Task<XmppHttpUploadCompletion> UploadAsync(
+        XmppHttpUploadSlot slot,
+        Stream content,
+        long contentLength,
+        string? contentType = null,
+        HttpClient? httpClient = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(slot);
+        ArgumentNullException.ThrowIfNull(content);
+        if (contentLength < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(contentLength), "Content length cannot be negative.");
+        }
+
+        var ownsClient = httpClient is null;
+        httpClient ??= new HttpClient();
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, slot.PutUrl);
+            request.Content = new StreamContent(content);
+            request.Content.Headers.ContentLength = contentLength;
+            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(
+                string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType);
+
+            foreach (var header in slot.Headers)
+            {
+                var name = SanitizeHeader(header.Name);
+                var value = SanitizeHeader(header.Value);
+                if (!AllowedHeaderNames.Contains(name))
+                {
+                    continue;
+                }
+
+                if (!request.Headers.TryAddWithoutValidation(name, value))
+                {
+                    request.Content.Headers.TryAddWithoutValidation(name, value);
+                }
+            }
+
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                throw new HttpRequestException(
+                    $"HTTP upload failed with status {(int)response.StatusCode} {response.ReasonPhrase}.",
+                    null,
+                    response.StatusCode);
+            }
+
+            return new XmppHttpUploadCompletion(slot.GetUrl, contentLength, contentType);
+        }
+        finally
+        {
+            if (ownsClient)
+            {
+                httpClient.Dispose();
+            }
+        }
+    }
+
+    public static void EnsureRequestAllowed(
+        string fileName,
+        long size,
+        string? contentType = null,
+        long? maxFileSize = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        if (size < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(size), "File size cannot be negative.");
+        }
+
+        if (maxFileSize is not null && size > maxFileSize.Value)
+        {
+            throw new ArgumentOutOfRangeException(nameof(size), $"File size exceeds the advertised maximum of {maxFileSize.Value} bytes.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            _ = MediaTypeHeaderValue.Parse(contentType);
+        }
+    }
+
+    public static bool SupportsHttpUpload(XmppServiceDiscoveryInfo info)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        return info.Supports(NamespaceName);
+    }
+
+    public static XmppChatMessage CreateFileMessage(
+        XmppAddress to,
+        XmppHttpUploadCompletion upload,
+        string fileName,
+        string? id = null)
+    {
+        ArgumentNullException.ThrowIfNull(upload);
+        return XmppChatMessage.CreateOutOfBandMessage(to, upload.GetUrl, fileName, id);
+    }
+
+    private static string? PurposeElementName(XmppHttpUploadPurpose purpose)
+    {
+        return purpose switch
+        {
+            XmppHttpUploadPurpose.Default => null,
+            XmppHttpUploadPurpose.Message => "message",
+            XmppHttpUploadPurpose.Profile => "profile",
+            XmppHttpUploadPurpose.Ephemeral => "ephemeral",
+            XmppHttpUploadPurpose.Permanent => "permanent",
+            _ => throw new ArgumentOutOfRangeException(nameof(purpose))
+        };
+    }
+
     private static string SanitizeHeader(string value)
     {
         return value.Replace("\r", string.Empty, StringComparison.Ordinal)
@@ -90,7 +230,9 @@ public enum XmppHttpUploadPurpose
 {
     Default,
     Message,
-    Profile
+    Profile,
+    Ephemeral,
+    Permanent
 }
 
 public sealed record XmppHttpUploadSlot(
@@ -99,3 +241,8 @@ public sealed record XmppHttpUploadSlot(
     IReadOnlyList<XmppHttpUploadHeader> Headers);
 
 public sealed record XmppHttpUploadHeader(string Name, string Value);
+
+public sealed record XmppHttpUploadCompletion(
+    Uri GetUrl,
+    long Size,
+    string? ContentType);
