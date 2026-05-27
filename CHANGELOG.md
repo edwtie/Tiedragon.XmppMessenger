@@ -42,6 +42,8 @@
   typed character.
 - Receiving a final message no longer rebuilds the full timeline, so existing
   smileys stay stable while new text arrives.
+- Audio/video call buttons are also available in the message composer toolbar
+  so they are visible even when the chat header is cramped.
 
 ## 0.1.0-alpha1 - 2026-05-27
 

@@ -94,6 +94,8 @@
     activeConversationMeta: byId("activeConversationMeta"),
     startAudioCallButton: byId("startAudioCallButton"),
     startVideoCallButton: byId("startVideoCallButton"),
+    composerAudioCallButton: byId("composerAudioCallButton"),
+    composerVideoCallButton: byId("composerVideoCallButton"),
     answerCallButton: byId("answerCallButton"),
     rejectCallButton: byId("rejectCallButton"),
     hangupCallButton: byId("hangupCallButton"),
@@ -159,6 +161,8 @@
     el.addConversationButton.addEventListener("click", addConversation);
     el.startAudioCallButton.addEventListener("click", () => startCall("audio"));
     el.startVideoCallButton.addEventListener("click", () => startCall("video"));
+    el.composerAudioCallButton.addEventListener("click", () => startCall("audio"));
+    el.composerVideoCallButton.addEventListener("click", () => startCall("video"));
     el.answerCallButton.addEventListener("click", answerIncomingCall);
     el.rejectCallButton.addEventListener("click", rejectIncomingCall);
     el.hangupCallButton.addEventListener("click", hangupCall);
@@ -1371,6 +1375,8 @@
     el.rejectCallButton.hidden = !incoming;
     el.startAudioCallButton.disabled = Boolean(call);
     el.startVideoCallButton.disabled = Boolean(call);
+    el.composerAudioCallButton.disabled = Boolean(call);
+    el.composerVideoCallButton.disabled = Boolean(call);
     el.hangupCallButton.disabled = !call;
     el.callPanel.hidden = !(call?.localStream || call?.remoteStream);
   }
