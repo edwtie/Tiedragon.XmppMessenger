@@ -41,6 +41,7 @@ Normal app flow:
 | Type | Purpose |
 | --- | --- |
 | `XmppServiceDiscovery` | XEP-0030 disco#info request/result support. |
+| `XmppInBandRegistration` | XEP-0077 registration info, submit, password-change and remove IQ helpers. |
 | `XmppEntityCapabilities` | XEP-0115 capability verification and presence payloads. |
 | `XmppAlternativeConnectionDiscovery` | XEP-0156 host-meta parsing for WebSocket/BOSH endpoints. |
 

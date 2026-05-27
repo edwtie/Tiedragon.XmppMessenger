@@ -6,6 +6,10 @@ internal static class XmppXmlNames
 
     public const string RosterNamespace = "jabber:iq:roster";
 
+    public const string InBandRegistrationNamespace = "jabber:iq:register";
+
+    public const string InBandRegistrationFeatureNamespace = "http://jabber.org/features/iq-register";
+
     public const string StreamNamespace = "http://etherx.jabber.org/streams";
 
     public const string TlsNamespace = "urn:ietf:params:xml:ns:xmpp-tls";

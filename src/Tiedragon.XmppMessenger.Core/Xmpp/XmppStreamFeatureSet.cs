@@ -13,6 +13,8 @@ public sealed record XmppStreamFeatureSet(
 {
     public bool StreamManagementOffered { get; init; }
 
+    public bool InBandRegistrationOffered { get; init; }
+
     public bool SupportsSaslMechanism(string mechanism)
     {
         return SaslMechanisms.Any(value => string.Equals(value, mechanism, StringComparison.OrdinalIgnoreCase));
@@ -55,6 +57,7 @@ public sealed record XmppStreamFeatureSet(
         XNamespace bind = XmppXmlNames.BindNamespace;
         XNamespace session = XmppXmlNames.SessionNamespace;
         XNamespace streamManagement = XmppXmlNames.StreamManagementNamespace;
+        XNamespace inBandRegistration = XmppXmlNames.InBandRegistrationFeatureNamespace;
 
         var startTls = element.Element(tls + "starttls");
         var mechanisms = element.Element(sasl + "mechanisms")
@@ -67,6 +70,7 @@ public sealed record XmppStreamFeatureSet(
         var bindElement = element.Element(bind + "bind");
         var sessionElement = element.Element(session + "session");
         var streamManagementElement = element.Element(streamManagement + "sm");
+        var inBandRegistrationElement = element.Element(inBandRegistration + "register");
 
         features = new XmppStreamFeatureSet(
             StartTlsOffered: startTls is not null,
@@ -77,7 +81,8 @@ public sealed record XmppStreamFeatureSet(
             SessionOffered: sessionElement is not null,
             SessionRequired: sessionElement?.Element(session + "required") is not null)
         {
-            StreamManagementOffered = streamManagementElement is not null
+            StreamManagementOffered = streamManagementElement is not null,
+            InBandRegistrationOffered = inBandRegistrationElement is not null
         };
         return true;
     }

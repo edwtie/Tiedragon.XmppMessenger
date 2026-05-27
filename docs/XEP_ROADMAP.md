@@ -9,6 +9,7 @@ that core.
 | XEP | Name | Purpose | Status |
 | --- | --- | --- | --- |
 | XEP-0030 | Service Discovery | Discover server/client features. | Started |
+| XEP-0077 | In-Band Registration | Account registration, password change and account removal. | Started |
 | XEP-0198 | Stream Management | Acknowledgements, resume and reconnect. | Planned |
 | XEP-0301 | In-Band Real Time Text | Live character-by-character text. | Started |
 | XEP-0085 | Chat State Notifications | active, composing, paused, inactive, gone. | Planned |

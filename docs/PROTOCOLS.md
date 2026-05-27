@@ -66,6 +66,7 @@ Real-server setup guide:
 | XEP | Purpose |
 | --- | --- |
 | XEP-0030 | Service discovery. |
+| XEP-0077 | In-band account registration, password change and account removal. |
 | XEP-0115 | Entity capabilities in presence broadcasts. |
 | XEP-0045 | Multi-user chat. |
 | XEP-0085 | Chat state notifications such as typing. |
@@ -94,6 +95,20 @@ changing the message body.
 `XmppVCardTemp` supports the vcard-temp profile fields most useful for contact
 identity in early clients: formatted name, nickname, URL, birthday and photo.
 It can create IQ get/set payloads and parse IQ result payloads.
+
+## XEP-0077 In-Band Registration
+
+`XmppInBandRegistration` creates registration info, submit, password-change and
+remove IQ payloads for the `jabber:iq:register` namespace. It also parses the
+legacy field-based info result used by many servers.
+
+`XmppStreamFeatureSet.InBandRegistrationOffered` detects the optional
+`http://jabber.org/features/iq-register` stream feature. `XmppStreamClient`
+exposes helpers for authenticated password changes/removal and for registration
+info/submit flows when the caller has opened the appropriate stream.
+
+Public servers often rate-limit or reject automated registration. The project
+treats that as correct server behavior, not a failure to bypass.
 
 ## XEP-0357 Push Notifications
 

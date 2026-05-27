@@ -89,6 +89,10 @@ var tests = new (string Name, Action Test)[]
     ("XMPP service discovery serializes info request", XmppServiceDiscoverySerializesInfoRequest),
     ("XMPP service discovery parses info result", XmppServiceDiscoveryParsesInfoResult),
     ("XMPP service discovery checks RTT capability", XmppServiceDiscoveryChecksRttCapability),
+    ("XMPP in-band registration serializes requests", XmppInBandRegistrationSerializesRequests),
+    ("XMPP in-band registration parses info result", XmppInBandRegistrationParsesInfoResult),
+    ("XMPP stream features parse in-band registration", XmppStreamFeaturesParseInBandRegistration),
+    ("XMPP stream client requests registration info", XmppStreamClientRequestsRegistrationInfo),
     ("XMPP entity capabilities creates deterministic verification", XmppEntityCapabilitiesCreatesDeterministicVerification),
     ("XMPP presence serializes and parses capabilities", XmppPresenceSerializesAndParsesCapabilities),
     ("XMPP alternative connection discovery creates host-meta URI", XmppAlternativeConnectionDiscoveryCreatesHostMetaUri),
@@ -2174,6 +2178,137 @@ static void XmppServiceDiscoveryChecksRttCapability()
         Features: [RttPacket.NamespaceName]);
 
     True(XmppServiceDiscovery.SupportsRealTimeText(info));
+}
+
+static void XmppInBandRegistrationSerializesRequests()
+{
+    var to = XmppAddress.Parse("example.org");
+    var info = XmppInBandRegistration.CreateInfoRequest("reg-info", to).ToXml();
+
+    Equal("get", info.Attribute("type")?.Value);
+    Equal("example.org", info.Attribute("to")?.Value);
+    Equal("query", info.Elements().Single().Name.LocalName);
+    Equal("jabber:iq:register", info.Elements().Single().Name.NamespaceName);
+
+    var set = XmppInBandRegistration.CreateSimpleRegistrationRequest(
+        "reg-1",
+        "edward",
+        "secret",
+        to,
+        key: "captcha-key").ToXml();
+    var query = set.Elements().Single();
+
+    Equal("set", set.Attribute("type")?.Value);
+    Equal("edward", query.Element(XName.Get("username", "jabber:iq:register"))?.Value);
+    Equal("secret", query.Element(XName.Get("password", "jabber:iq:register"))?.Value);
+    Equal("captcha-key", query.Element(XName.Get("key", "jabber:iq:register"))?.Value);
+
+    var remove = XmppInBandRegistration.CreateRemoveRequest("remove-1", to).ToXml();
+    Equal("remove", remove.Descendants(XName.Get("remove", "jabber:iq:register")).Single().Name.LocalName);
+}
+
+static void XmppInBandRegistrationParsesInfoResult()
+{
+    var xml = """
+        <iq xmlns="jabber:client" id="reg-info" type="result">
+          <query xmlns="jabber:iq:register">
+            <instructions>Choose a username and password.</instructions>
+            <username/>
+            <password/>
+            <email/>
+            <key>captcha-key</key>
+          </query>
+        </iq>
+        """;
+
+    True(XmppIq.TryParse(xml, out var iq));
+    True(XmppInBandRegistration.TryParseInfoResult(iq!, out var info));
+
+    True(info!.Requires("username"));
+    True(info.Requires("password"));
+    True(info.Requires("email"));
+    Equal("Choose a username and password.", info.Instructions);
+    Equal("captcha-key", info.Key);
+}
+
+static void XmppStreamFeaturesParseInBandRegistration()
+{
+    var xml = """
+        <stream:features xmlns:stream="http://etherx.jabber.org/streams">
+          <register xmlns="http://jabber.org/features/iq-register"/>
+        </stream:features>
+        """;
+
+    True(XmppStreamFeatureSet.TryParse(xml, out var features));
+    True(features.InBandRegistrationOffered);
+}
+
+static void XmppStreamClientRequestsRegistrationInfo()
+{
+    RunXmppStreamClientRequestsRegistrationInfoAsync().GetAwaiter().GetResult();
+}
+
+static async Task RunXmppStreamClientRequestsRegistrationInfoAsync()
+{
+    var listener = new TcpListener(IPAddress.Loopback, 0);
+    listener.Start();
+    var endpoint = (IPEndPoint)listener.LocalEndpoint;
+    var sawRegistrationInfoRequest = false;
+
+    var serverTask = Task.Run(async () =>
+    {
+        using var serverClient = await listener.AcceptTcpClientAsync();
+        await using var serverStream = serverClient.GetStream();
+        var buffer = new byte[8192];
+
+        await ReadTextAsync(serverStream, buffer);
+        await WriteTextAsync(serverStream, """
+            <stream:stream xmlns="jabber:client" xmlns:stream="http://etherx.jabber.org/streams" from="example.org" version="1.0">
+            <stream:features/>
+            """);
+
+        var request = await ReadTextAsync(serverStream, buffer);
+        sawRegistrationInfoRequest = request.Contains("type=\"get\"", StringComparison.Ordinal)
+            && request.Contains("jabber:iq:register", StringComparison.Ordinal);
+
+        await WriteTextAsync(serverStream, """
+            <iq xmlns="jabber:client" type="result" id="register-info-1">
+              <query xmlns="jabber:iq:register">
+                <instructions>Choose a username.</instructions>
+                <username/>
+                <password/>
+              </query>
+            </iq>
+            """);
+
+        await ReadTextAsync(serverStream, buffer);
+    });
+
+    try
+    {
+        var settings = new XmppConnectionSettings(
+            XmppAddress.Parse("example.org"),
+            IPAddress.Loopback.ToString(),
+            endpoint.Port,
+            requireTls: false);
+        await using var client = new XmppStreamClient(settings);
+
+        await client.ConnectAndReadFeaturesAsync();
+        var info = await client.RequestRegistrationInfoAsync(
+            XmppAddress.Parse("example.org"),
+            TimeSpan.FromSeconds(5));
+        await client.DisconnectAsync();
+
+        True(sawRegistrationInfoRequest);
+        True(info.Requires("username"));
+        True(info.Requires("password"));
+    }
+    finally
+    {
+        listener.Stop();
+    }
+
+    await serverTask;
 }
 
 static void XmppEntityCapabilitiesCreatesDeterministicVerification()

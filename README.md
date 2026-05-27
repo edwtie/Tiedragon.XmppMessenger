@@ -45,6 +45,7 @@ Important XMPP extensions:
 
 - XEP-0030 - Service Discovery
 - XEP-0045 - Multi-User Chat
+- XEP-0077 - In-Band Registration
 - XEP-0085 - Chat State Notifications
 - XEP-0184 - Message Delivery Receipts
 - XEP-0198 - Stream Management

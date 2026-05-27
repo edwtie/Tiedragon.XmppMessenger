@@ -107,6 +107,17 @@ item is implemented, tested and documented.
 - [x] Client helper to request server discovery.
 - [x] Contact/client capability discovery.
 
+## XEP-0077 - In-Band Registration
+
+- [x] Registration info request.
+- [x] Registration info result parsing.
+- [x] Registration submit request.
+- [x] Password change request.
+- [x] Remove registration request.
+- [x] Stream feature detection.
+- [x] `XmppStreamClient` helper methods.
+- [x] Real-server smoke registration path through `RealServerSmoke --register`.
+
 ## XMPP Compliance Suites
 
 - [x] Compliance suites document added.

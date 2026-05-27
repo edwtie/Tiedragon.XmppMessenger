@@ -409,6 +409,67 @@ public sealed class XmppStreamClient : IAsyncDisposable
             result.Payload);
     }
 
+    public async Task<XmppRegistrationInfo> RequestRegistrationInfoAsync(
+        XmppAddress? to,
+        TimeSpan timeout,
+        string id = "register-info-1",
+        CancellationToken cancellationToken = default)
+    {
+        var result = await SendIqAndWaitAsync(
+            XmppInBandRegistration.CreateInfoRequest(id, to),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+
+        if (XmppInBandRegistration.TryParseInfoResult(result, out var info) && info is not null)
+        {
+            return info;
+        }
+
+        throw new XmppProtocolException(
+            XmppProtocolErrorKind.IqError,
+            "The registration response was not a valid XEP-0077 info result.",
+            result.Payload);
+    }
+
+    public async Task RegisterInBandAsync(
+        XmppRegistrationRequest request,
+        XmppAddress? to,
+        TimeSpan timeout,
+        string id = "register-1",
+        CancellationToken cancellationToken = default)
+    {
+        await SendIqAndWaitAsync(
+            XmppInBandRegistration.CreateRegistrationRequest(id, request, to),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task ChangePasswordInBandAsync(
+        string username,
+        string password,
+        XmppAddress? to,
+        TimeSpan timeout,
+        string id = "register-password-1",
+        CancellationToken cancellationToken = default)
+    {
+        await SendIqAndWaitAsync(
+            XmppInBandRegistration.CreatePasswordChangeRequest(id, username, password, to),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task RemoveRegistrationAsync(
+        XmppAddress? to,
+        TimeSpan timeout,
+        string id = "register-remove-1",
+        CancellationToken cancellationToken = default)
+    {
+        await SendIqAndWaitAsync(
+            XmppInBandRegistration.CreateRemoveRequest(id, to),
+            timeout,
+            cancellationToken).ConfigureAwait(false);
+    }
+
     public Task SendChatMessageAsync(XmppChatMessage message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);

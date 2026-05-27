@@ -1,7 +1,6 @@
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
-using System.Security;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -77,24 +76,24 @@ static async Task RegisterAccountAsync(
     }
 
     await using var stream = await StartTlsAndOpenRegistrationStreamAsync(options, account.DomainPart, cancellationToken);
-    await WriteTextAsync(
-        stream,
-        $"<iq type=\"get\" to=\"{EscapeXml(account.DomainPart)}\" id=\"reg-info\"><query xmlns=\"jabber:iq:register\"/></iq>",
-        cancellationToken);
+    await WriteTextAsync(stream, XmppInBandRegistration.CreateInfoRequest(
+        "reg-info",
+        XmppAddress.Parse(account.DomainPart)).ToXml().ToString(SaveOptions.DisableFormatting), cancellationToken);
     var infoResponse = await ReadIqAsync(stream, "reg-info", cancellationToken);
-    if (!TryReadIqType(infoResponse, out var infoType) || !string.Equals(infoType, "result", StringComparison.Ordinal))
+    if (!TryParseStreamIq(infoResponse, out var infoIq)
+        || infoIq is null
+        || !XmppInBandRegistration.TryParseInfoResult(infoIq, out var info)
+        || info is null)
     {
         throw new InvalidOperationException("Registration info request failed: " + infoResponse);
     }
 
-    var request = $"""
-        <iq type="set" to="{EscapeXml(account.DomainPart)}" id="reg-1">
-          <query xmlns="jabber:iq:register">
-            <username>{EscapeXml(account.LocalPart)}</username>
-            <password>{EscapeXml(password)}</password>
-          </query>
-        </iq>
-        """;
+    var request = XmppInBandRegistration.CreateSimpleRegistrationRequest(
+        "reg-1",
+        account.LocalPart,
+        password,
+        XmppAddress.Parse(account.DomainPart),
+        info?.Key).ToXml().ToString(SaveOptions.DisableFormatting);
 
     await WriteTextAsync(stream, request, cancellationToken);
     var response = await ReadIqAsync(stream, "reg-1", cancellationToken);
@@ -367,15 +366,30 @@ static bool TryReadIqType(string xml, out string? type)
     }
 }
 
-static string EscapeXml(string value)
+static bool TryParseStreamIq(string xml, out XmppIq? iq)
 {
-    return SecurityElement.Escape(value) ?? string.Empty;
+    if (XmppIq.TryParse(xml, out iq))
+    {
+        return true;
+    }
+
+    iq = null;
+    try
+    {
+        var wrapper = "<wrapper xmlns=\"jabber:client\">" + xml + "</wrapper>";
+        var element = XElement.Parse(wrapper).Elements().SingleOrDefault();
+        return element is not null && XmppIq.TryParse(element, out iq);
+    }
+    catch (XmlException)
+    {
+        return false;
+    }
 }
 
 static string CreateOpenStreamWithoutFrom(string domain)
 {
     return "<stream:stream"
-        + $" to=\"{EscapeXml(domain)}\""
+        + $" to=\"{System.Security.SecurityElement.Escape(domain)}\""
         + " version=\"1.0\""
         + " xml:lang=\"en\""
         + " xmlns=\"jabber:client\""
