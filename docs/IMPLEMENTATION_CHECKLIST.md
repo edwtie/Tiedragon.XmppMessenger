@@ -198,6 +198,7 @@ item is implemented, tested and documented.
 - [x] Local Prosody/Openfire smoke setup notes.
 - [x] Real-server smoke tool for TLS, hostname validation and two-account chat.
 - [x] Real-server smoke tool can create temporary XEP-0077 in-band registration accounts with `--register`.
+- [x] Local fake XMPP server tool for repeatable no-TLS protocol smoke tests.
 
 ## Accessibility Agent
 

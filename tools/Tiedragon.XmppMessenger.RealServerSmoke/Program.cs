@@ -18,18 +18,25 @@ using var cancellation = new CancellationTokenSource(options.Timeout);
 
 try
 {
-    Console.WriteLine($"TLS smoke: {options.Host}:{options.Port} as {options.Account1.Bare}");
-    await VerifyTlsCertificateAsync(options, cancellation.Token);
-    Console.WriteLine("PASS TLS certificate accepted for configured host.");
-
-    if (!string.IsNullOrWhiteSpace(options.BadHost))
+    if (options.NoTls)
     {
-        await VerifyHostnameRejectionAsync(options, cancellation.Token);
-        Console.WriteLine("PASS Hostname mismatch rejected.");
+        Console.WriteLine($"SKIP TLS smoke: --no-tls for local harness {options.Host}:{options.Port}.");
     }
     else
     {
-        Console.WriteLine("SKIP Hostname mismatch: pass --bad-host to run the negative certificate test.");
+        Console.WriteLine($"TLS smoke: {options.Host}:{options.Port} as {options.Account1.Bare}");
+        await VerifyTlsCertificateAsync(options, cancellation.Token);
+        Console.WriteLine("PASS TLS certificate accepted for configured host.");
+
+        if (!string.IsNullOrWhiteSpace(options.BadHost))
+        {
+            await VerifyHostnameRejectionAsync(options, cancellation.Token);
+            Console.WriteLine("PASS Hostname mismatch rejected.");
+        }
+        else
+        {
+            Console.WriteLine("SKIP Hostname mismatch: pass --bad-host to run the negative certificate test.");
+        }
     }
 
     if (options.Register)
@@ -75,7 +82,7 @@ static async Task RegisterAccountAsync(
         throw new InvalidOperationException("In-band registration requires an account localpart.");
     }
 
-    await using var stream = await StartTlsAndOpenRegistrationStreamAsync(options, account.DomainPart, cancellationToken);
+    await using var stream = await OpenRegistrationStreamAsync(options, account.DomainPart, cancellationToken);
     await WriteTextAsync(stream, XmppInBandRegistration.CreateInfoRequest(
         "reg-info",
         XmppAddress.Parse(account.DomainPart)).ToXml().ToString(SaveOptions.DisableFormatting), cancellationToken);
@@ -175,6 +182,31 @@ static async Task<SslStream> StartTlsAsync(
     return sslStream;
 }
 
+static async Task<Stream> OpenRegistrationStreamAsync(
+    SmokeOptions options,
+    string domain,
+    CancellationToken cancellationToken)
+{
+    return options.NoTls
+        ? await StartNoTlsAndOpenRegistrationStreamAsync(options, domain, cancellationToken)
+        : await StartTlsAndOpenRegistrationStreamAsync(options, domain, cancellationToken);
+}
+
+static async Task<Stream> StartNoTlsAndOpenRegistrationStreamAsync(
+    SmokeOptions options,
+    string domain,
+    CancellationToken cancellationToken)
+{
+    var client = new TcpClient();
+    await client.ConnectAsync(options.Host, options.Port, cancellationToken);
+    var networkStream = client.GetStream();
+    var buffer = new byte[16384];
+
+    await WriteTextAsync(networkStream, CreateOpenStreamWithoutFrom(domain), cancellationToken);
+    await ReadUntilAsync(networkStream, buffer, "</stream:features>", cancellationToken);
+    return networkStream;
+}
+
 static async Task<SslStream> StartTlsAndOpenRegistrationStreamAsync(
     SmokeOptions options,
     string domain,
@@ -221,10 +253,10 @@ static async Task VerifyTwoAccountChatAsync(SmokeOptions options, CancellationTo
         options.Timeout,
         XmppStreamOptions.Default.KeepAliveInterval);
     await using var sender = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account1, options.Host, options.Port, requireTls: true),
+        new XmppConnectionSettings(options.Account1, options.Host, options.Port, requireTls: !options.NoTls),
         clientOptions);
     await using var receiver = new XmppStreamClient(
-        new XmppConnectionSettings(options.Account2, options.Host, options.Port, requireTls: true),
+        new XmppConnectionSettings(options.Account2, options.Host, options.Port, requireTls: !options.NoTls),
         clientOptions);
 
     await sender.LoginAsync(options.Account1.LocalPart ?? options.Account1.Bare, options.Password1, cancellationToken: cancellationToken);
@@ -405,6 +437,7 @@ sealed record SmokeOptions(
     string? Password2,
     string? BadHost,
     bool Register,
+    bool NoTls,
     TimeSpan Timeout)
 {
     public static SmokeOptions? Parse(string[] args)
@@ -420,7 +453,8 @@ sealed record SmokeOptions(
             }
 
             var name = key[2..];
-            if (string.Equals(name, "register", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(name, "register", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "no-tls", StringComparison.OrdinalIgnoreCase))
             {
                 flags.Add(name);
                 continue;
@@ -455,7 +489,17 @@ sealed record SmokeOptions(
         values.TryGetValue("password2", out var password2);
         values.TryGetValue("bad-host", out var badHost);
 
-        return new SmokeOptions(host, port, account1, password1, account2, password2, badHost, flags.Contains("register"), timeout);
+        return new SmokeOptions(
+            host,
+            port,
+            account1,
+            password1,
+            account2,
+            password2,
+            badHost,
+            flags.Contains("register"),
+            flags.Contains("no-tls"),
+            timeout);
     }
 
     public static void PrintUsage()
@@ -475,6 +519,7 @@ sealed record SmokeOptions(
               --port 5222
               --timeout-seconds 30
               --register
+              --no-tls
             """);
     }
 }

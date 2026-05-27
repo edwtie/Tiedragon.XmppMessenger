@@ -80,6 +80,20 @@ Calling and video are planned after the core messenger is stable.
 
 ## Current Code
 
+Local protocol harness:
+
+```powershell
+dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
+  --listen 127.0.0.1 `
+  --port 55222 `
+  --domain localhost `
+  --account edward:secret `
+  --account anna:secret
+```
+
+The fake server supports no-TLS local testing for XEP-0077, SASL PLAIN,
+resource binding, empty roster and direct one-to-one chat relay.
+
 ```text
 src/Tiedragon.XmppMessenger.Core
 tests/Tiedragon.XmppMessenger.Tests

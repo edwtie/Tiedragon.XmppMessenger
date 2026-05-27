@@ -155,6 +155,50 @@ Openfire can be used as a second smoke target after Prosody:
 - enable WebSocket if installed/available;
 - enable monitoring/archive plugins only when testing XEP-0313 behavior.
 
+## Local Fake Server
+
+`Tiedragon.XmppMessenger.FakeServer` is a local no-TLS protocol harness built
+from the fake-server test flow. It is not a production XMPP server and must not
+be exposed to a network. Use it for fast repeatable client tests without
+creating public server accounts.
+
+Start it with two preloaded accounts:
+
+```powershell
+dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
+  --listen 127.0.0.1 `
+  --port 55222 `
+  --domain localhost `
+  --account edward:secret `
+  --account anna:secret
+```
+
+Run the no-TLS smoke against it:
+
+```powershell
+dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
+  --host 127.0.0.1 `
+  --port 55222 `
+  --account1 edward@localhost/desktop `
+  --password1 secret `
+  --account2 anna@localhost/desktop `
+  --password2 secret `
+  --timeout-seconds 20 `
+  --no-tls
+```
+
+Add `--register` to the smoke command when you want the tool to create the
+temporary accounts through XEP-0077 instead of preloading them with `--account`.
+
+Implemented fake-server behavior:
+
+- XEP-0077 account registration IQs;
+- SASL PLAIN authentication;
+- resource binding;
+- empty roster result;
+- basic disco#info result;
+- direct one-to-one chat relay to an online local session.
+
 ## Current Status
 
 The repository has fake-server tests for stream negotiation, SASL, bind, roster,
