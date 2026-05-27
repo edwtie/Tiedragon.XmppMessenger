@@ -19,6 +19,7 @@
   --selection-border: #6aa2ff;
   --selection-text: #ffffff;
   --selection-muted: #b6c2d1;
+  --remote-draft-text: #dbeafe;
   --radius: 8px;
   font-family: "Segoe UI", Arial, sans-serif;
 }
@@ -330,7 +331,7 @@ textarea {
 
 .remote-draft p {
   margin: 4px 0 0;
-  color: #dbeafe;
+  color: var(--remote-draft-text);
   white-space: pre-wrap;
 }
 
@@ -496,6 +497,7 @@ textarea {
     --selection-border: #2563eb;
     --selection-text: #0f172a;
     --selection-muted: #eef6ff;
+    --remote-draft-text: #102033;
   }
 
   body,
@@ -510,10 +512,6 @@ textarea {
   .remote-draft,
   .app-tabs {
     background: #ffffff;
-  }
-
-  .remote-draft p {
-    color: #102033;
   }
 
   .provider-card {
@@ -552,6 +550,7 @@ body[data-theme="light"] {
   --selection-border: #2563eb;
   --selection-text: #0f172a;
   --selection-muted: #eef6ff;
+  --remote-draft-text: #102033;
   color-scheme: light;
 }
 
@@ -567,10 +566,6 @@ body[data-theme="light"] .composer,
 body[data-theme="light"] .remote-draft,
 body[data-theme="light"] .app-tabs {
   background: #ffffff;
-}
-
-body[data-theme="light"] .remote-draft p {
-  color: #102033;
 }
 
 body[data-theme="light"] .provider-card {
@@ -614,6 +609,7 @@ body[data-theme="dark"] {
   --selection-border: #6aa2ff;
   --selection-text: #ffffff;
   --selection-muted: #b6c2d1;
+  --remote-draft-text: #dbeafe;
   color-scheme: dark;
 }
 
@@ -637,10 +633,6 @@ body[data-theme="dark"] .app-tabs {
 
 body[data-theme="dark"] .remote-draft {
   background: #18253a;
-}
-
-body[data-theme="dark"] .remote-draft p {
-  color: #dbeafe;
 }
 
 body[data-theme="dark"] .provider-card {
