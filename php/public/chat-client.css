@@ -37,6 +37,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -561,6 +562,16 @@ textarea {
   font-size: 13px;
 }
 
+.media-status {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #132034;
+  color: #dbeafe;
+  padding: 7px 9px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .account-status {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -802,6 +813,11 @@ body[data-theme="light"] .account-status {
   color: #334155;
 }
 
+body[data-theme="light"] .media-status {
+  background: #f5f8fc;
+  color: #334155;
+}
+
 body[data-theme="light"] input,
 body[data-theme="light"] select,
 body[data-theme="light"] textarea,
@@ -871,6 +887,11 @@ body[data-theme="dark"] .capability {
 }
 
 body[data-theme="dark"] .account-status {
+  background: #132034;
+  color: #dbeafe;
+}
+
+body[data-theme="dark"] .media-status {
   background: #132034;
   color: #dbeafe;
 }

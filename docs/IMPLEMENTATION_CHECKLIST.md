@@ -235,7 +235,8 @@ item is implemented, tested and documented.
 - [x] `XmppStreamClient` Jingle send helper.
 - [x] WebRTC peer connection bridge in the web client demo.
 - [x] Basic audio/video permission UI.
-- [ ] Device picker and per-call media settings.
+- [x] Device picker and local media preview settings.
+- [ ] Per-call device switching after a call has already started.
 - [ ] Interoperability smoke with existing Jingle client.
 
 ## Tooling And Samples

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Tiedragon XMPP Web Client</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="chat-client.css?v=20260527-call-buttons">
+  <link rel="stylesheet" href="chat-client.css?v=20260527-media-settings">
 </head>
 <body>
   <div class="app-shell">
@@ -161,6 +161,34 @@
         </section>
 
         <section class="settings-section">
+          <h2 data-i18n="section.media">Media</h2>
+          <label>
+            <span data-i18n="label.camera">Camera</span>
+            <select id="cameraInput"></select>
+          </label>
+          <label>
+            <span data-i18n="label.microphone">Microphone</span>
+            <select id="microphoneInput"></select>
+          </label>
+          <label>
+            <span data-i18n="label.video_quality">Video quality</span>
+            <select id="videoQualityInput">
+              <option value="default" data-i18n="quality.default">Default</option>
+              <option value="qvga">320 x 240</option>
+              <option value="vga">640 x 480</option>
+              <option value="hd">1280 x 720</option>
+              <option value="fullhd">1920 x 1080</option>
+            </select>
+          </label>
+          <div id="mediaStatus" class="media-status" data-i18n="media.not_loaded">Media devices not loaded yet.</div>
+          <div class="button-row">
+            <button id="refreshMediaButton" type="button" data-i18n="button.refresh_devices">Refresh devices</button>
+            <button id="previewMediaButton" type="button" data-i18n="button.preview_camera">Preview</button>
+            <button id="stopMediaPreviewButton" type="button" data-i18n="button.stop_preview">Stop preview</button>
+          </div>
+        </section>
+
+        <section class="settings-section">
           <h2 data-i18n="section.provider">Provider</h2>
           <div id="providerSummary" class="provider-summary" data-i18n="provider.loading">Loading provider manifest...</div>
           <div id="capabilityList" class="capability-list"></div>
@@ -189,6 +217,6 @@
     </main>
   </div>
 
-  <script src="chat-client.js?v=20260527-call-buttons"></script>
+  <script src="chat-client.js?v=20260527-media-settings"></script>
 </body>
 </html>
