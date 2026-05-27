@@ -31,6 +31,28 @@ smoke path and real-server smoke tool. That means the server checks below are
 not separate sample scripts; they validate the library's XMPP stream, TLS/SASL,
 resource binding, registration, roster and message code.
 
+## Build The Release Zip
+
+Create the WAMP-ready zip with:
+
+```powershell
+.\scripts\package-alpha1.ps1
+```
+
+The package script publishes the .NET tools and verifies that the zip contains:
+
+- `wamp\www\teletyptel\public` for the browser client;
+- `wamp\www\teletyptel\lib\Database.php` for the PHP account API;
+- `wamp\www\teletyptel\rtt-websocket-server.php` for the local relay;
+- `wamp\bin\teletyptel\FakeServer` and `RealServerSmoke` binaries;
+- `wamp\bin\teletyptel\AiBotConsole` and `WebSocketConsole` binaries.
+
+The zip is written to:
+
+```text
+artifacts\teletyptel-0.1.0-alpha1-web-demo.zip
+```
+
 ## Run The Web Chat Demo
 
 Start the PHP relay:

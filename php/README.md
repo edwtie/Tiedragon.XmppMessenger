@@ -68,6 +68,16 @@ $php = (Get-ChildItem C:\wamp64\bin\php\php*\php.exe | Sort-Object FullName -Des
 Apache serves the page, but the relay is a long-running CLI process listening
 on `ws://127.0.0.1:8787`.
 
+The release zip is generated from the repository root with:
+
+```powershell
+.\scripts\package-alpha1.ps1
+```
+
+That script includes `public`, `lib`, `schema.sql`, `config.example.php`, the
+relay server and the published .NET test tools under a WAMP-style folder
+layout.
+
 The fuller web chat client lives at:
 
 ```text
