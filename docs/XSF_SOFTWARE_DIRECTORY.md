@@ -59,7 +59,7 @@ is online.
 
 Teletyptel 2.0 is a web-based XMPP client for accessible realtime
 communication. Alpha 1 includes a local web chat demo, XEP-0301-style real-time
-text, a C# XMPP core, STARTTLS fake-server smoke testing and real-server smoke
+text, a C# XMPP core, STARTTLS local server smoke testing and real-server smoke
 tools. Android and iOS packaging are planned after the web client stabilizes.
 
 ## XMPP Scope

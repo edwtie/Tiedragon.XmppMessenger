@@ -18,7 +18,7 @@
   protocol flows.
 - Real-server smoke MUC options for XEP-0045 service discovery, room discovery,
   two-account room join, groupchat delivery and optional owner/admin checks.
-- Local fake-server MUC conference path for repeatable smoke runs.
+- Local server MUC conference path for repeatable smoke runs.
 - `XmppStreamClient.ReadNextStanzaAsync` now preserves additional stanzas that
   arrive in the same stream read, matching real Prosody batching behavior.
 - Local web file upload endpoint and chat attachment cards for Alpha relay
@@ -50,7 +50,7 @@ First public alpha evaluation release.
 - XEP helpers for service discovery, stream management, in-band registration,
   real-time text, chat states, delivery receipts, message carbons, vCard-temp,
   push notification IQs and archive query/result parsing.
-- Local fake XMPP server with mandatory STARTTLS, XEP-0077 registration, SASL
+- Local XMPP server with mandatory STARTTLS, XEP-0077 registration, SASL
   PLAIN, resource binding, empty roster, disco#info and one-to-one chat relay.
 - Real-server smoke tool for TLS validation, hostname rejection, XEP-0077 and
   two-account chat checks.

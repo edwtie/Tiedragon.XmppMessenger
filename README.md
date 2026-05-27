@@ -3,7 +3,7 @@
 Tiedragon Teletyptel 2.0 is an alpha XMPP messenger project focused on
 accessible real-time text. The current Alpha 1 codebase is usable as an
 evaluation build: it includes a web chat UI, PHP WebSocket relay, C# XMPP core,
-local STARTTLS fake server, real-server smoke tool and repeatable test suite.
+local STARTTLS XMPP server, real-server smoke tool and repeatable test suite.
 
 This is not a production messenger yet. It is a developer/tester release for
 evaluating the protocol stack, live typing model and web/mobile UI direction
@@ -20,7 +20,7 @@ still using normal platform primitives such as TLS, XML and WebSocket APIs.
 - User-facing guide: [User Guide](docs/USER_GUIDE.md)
 - Alpha 1 release notes: [Release Notes](docs/RELEASE_NOTES_ALPHA1.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
-- Real server and fake server setup: [Real Server Setup](docs/REAL_SERVER_SETUP.md)
+- Real server and local server setup: [Real Server Setup](docs/REAL_SERVER_SETUP.md)
 - Windows deployment/setup: [Windows Setup](docs/WINDOWS_SETUP.md)
 - Linux deployment/setup: [Linux Setup](docs/LINUX_SETUP.md)
 - XSF readiness checklist: [XSF Software Directory Preparation](docs/XSF_SOFTWARE_DIRECTORY.md)
@@ -46,7 +46,7 @@ Alpha 1 currently provides:
   receipts, carbons, archive query models and XEP-0301 RTT
 - protocol helpers for MUC room discovery/config/admin, HTTP file upload slots,
   OMEMO wire stanzas and Jingle RTP signaling
-- local fake XMPP server with mandatory STARTTLS
+- local XMPP server with mandatory STARTTLS
 - real-server smoke tool for TLS, hostname validation, XEP-0077 and
   two-account chat plus XEP-0045 MUC service/room smoke
 
@@ -111,10 +111,10 @@ Calling and video are planned after the core messenger is stable.
 
 ## Current Code
 
-Local protocol harness:
+Local development XMPP server:
 
 ```powershell
-dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
+dotnet run --project tools/Tiedragon.XmppMessenger.LocalServer -- `
   --listen 127.0.0.1 `
   --port 55222 `
   --domain localhost `
@@ -122,7 +122,7 @@ dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
   --account anna:secret
 ```
 
-The fake server requires STARTTLS and supports XEP-0077, SASL PLAIN,
+The local server requires STARTTLS and supports XEP-0077, SASL PLAIN,
 resource binding, empty roster, direct one-to-one chat relay and a small MUC
 conference path. For local self-signed certificates, pass the printed SHA-256
 fingerprint to the smoke tool with `--cert-sha256`.

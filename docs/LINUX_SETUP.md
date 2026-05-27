@@ -29,8 +29,8 @@ executables. The Linux target must have .NET runtime 10 installed.
 Each tool folder contains three useful entry points:
 
 ```text
-Tiedragon.XmppMessenger.FakeServer          Linux apphost executable
-Tiedragon.XmppMessenger.FakeServer.dll      cross-platform .NET assembly
+Tiedragon.XmppMessenger.LocalServer          Linux apphost executable
+Tiedragon.XmppMessenger.LocalServer.dll      cross-platform .NET assembly
 run.sh                                      launcher that runs the dll with dotnet
 ```
 
@@ -147,10 +147,10 @@ Nginx and proxy the WebSocket endpoint to `127.0.0.1:8787`.
 
 ## .NET Smoke Tools
 
-Run the fake server:
+Run the local server:
 
 ```bash
-/opt/teletyptel/bin/FakeServer/Tiedragon.XmppMessenger.FakeServer \
+/opt/teletyptel/bin/LocalServer/Tiedragon.XmppMessenger.LocalServer \
   --listen 127.0.0.1 \
   --port 55222 \
   --domain localhost \
@@ -161,7 +161,7 @@ Run the fake server:
 Equivalent portable form:
 
 ```bash
-dotnet /opt/teletyptel/bin/FakeServer/Tiedragon.XmppMessenger.FakeServer.dll \
+dotnet /opt/teletyptel/bin/LocalServer/Tiedragon.XmppMessenger.LocalServer.dll \
   --listen 127.0.0.1 \
   --port 55222 \
   --domain localhost \

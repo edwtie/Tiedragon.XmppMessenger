@@ -68,7 +68,7 @@ surface stabilizes.
 - Protocol failures should use typed exceptions and error categories.
 - Async APIs must accept `CancellationToken`.
 - Library code must not show message boxes or write directly to WinForms UI.
-- Tests should cover both pure model behavior and fake-server network behavior.
+- Tests should cover both pure model behavior and local server network behavior.
 
 ## Localization Boundary
 
@@ -156,7 +156,7 @@ Pure tests:
 - RTT edit application
 - JID parsing
 
-Fake-server tests:
+Local server tests:
 
 - stream open/features
 - STARTTLS proceed/failure

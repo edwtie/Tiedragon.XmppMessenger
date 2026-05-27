@@ -98,7 +98,7 @@ to this product.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| RFC 6120 streams | Started | Stream open/read/write, feature parser and fake-server tests. |
+| RFC 6120 streams | Started | Stream open/read/write, feature parser and local server tests. |
 | RFC 6120 TLS/SASL/bind | Started | STARTTLS plan, TLS upgrader hook, SCRAM/PLAIN and bind tests. |
 | RFC 7590 TLS policy | Started | TLS required by default and downgrade protection tests. |
 | RFC 7622 addresses | Started | Bare/full JID, IDN normalization and invalid JID tests. |
@@ -113,7 +113,7 @@ smoke tests are still open.
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| RFC 6121 chat | Started | Normal chat serialization, parsing and fake-server send/receive. |
+| RFC 6121 chat | Started | Normal chat serialization, parsing and local server send/receive. |
 | RFC 6121 presence | Started | Presence, subscription and initial presence helpers. |
 | RFC 6121 roster | Started | Roster get/set/remove helpers and parser tests. |
 | XEP-0245 `/me` | Started | Body-preserving parser/display helper tests. |

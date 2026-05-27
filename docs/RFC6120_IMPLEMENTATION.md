@@ -71,12 +71,12 @@ Current status:
 - Multiple stanzas in one buffer are covered by tests.
 - Stream close is covered by tests.
 - `XmppStreamClient` wires these classes to a TCP stream, reads first stream
-  features from a fake server and returns the first negotiation decision.
+  features from a local server and returns the first negotiation decision.
 
 Acceptance:
 
-- A fake server can send open stream + features and the reader returns features.
-- A fake server can send multiple stanzas in one buffer and the reader returns
+- A local server can send open stream + features and the reader returns features.
+- A local server can send multiple stanzas in one buffer and the reader returns
   them one by one.
 - Partial XML chunks are tolerated.
 - Invalid stream XML becomes a typed stream failure instead of crashing the UI.
@@ -103,7 +103,7 @@ Deliverables:
 
 Acceptance:
 
-- Client connects to a fake TCP XMPP server.
+- Client connects to a local TCP XMPP server.
 - Client sends the open stream header with `to`, `from`, `xml:lang`,
   `jabber:client` and `stream` namespaces.
 - Client reads first stream features.
@@ -112,7 +112,7 @@ Acceptance:
 Current status:
 
 - `XmppStreamClient` exists.
-- Fake server test covers connect, open stream, first features, first
+- Local server test covers connect, open stream, first features, first
   negotiation decision and graceful close.
 - Send/receive raw XML trace hooks exist for debug console integration.
 
@@ -147,7 +147,7 @@ Current status:
 - `IXmppTlsStreamUpgrader` allows the stream upgrade to be tested.
 - `XmppTlsStreamUpgrader` performs the real `SslStream` client authentication.
 - `XmppStreamClient` restarts the XML stream after STARTTLS proceed.
-- Fake-server test covers command, upgrade hook and fresh open stream.
+- Local server test covers command, upgrade hook and fresh open stream.
 - Required-TLS policy rejects servers that do not offer STARTTLS.
 - Real certificate/server smoke coverage remains open.
 
@@ -183,7 +183,7 @@ Current status:
 - PLAIN and SCRAM authentication paths restart the XML stream after success.
 - SCRAM-SHA-1 is verified with the RFC test vector.
 - SCRAM-SHA-256 is selected automatically when offered.
-- Fake-server tests cover SASL challenge/response and stream restart.
+- Local server tests cover SASL challenge/response and stream restart.
 
 Tests:
 
@@ -222,7 +222,7 @@ Current status:
 - `ReadFeaturesAsync` reads post-SASL stream features.
 - `BindAfterAuthenticationAsync` requires the bind feature before sending bind IQ.
 - `BindResourceAsync` stores `BoundJid` and marks the client resource-bound.
-- Fake-server mini-login covers SASL restart, bind features, bind IQ and bound JID storage.
+- Local server mini-login covers SASL restart, bind features, bind IQ and bound JID storage.
 
 ### Phase 6 - Stanza Dispatch
 
@@ -318,7 +318,7 @@ Current status:
 
 Tests:
 
-- chat send/receive through fake server
+- chat send/receive through local server
 - roster result parse
 - presence update parse
 
@@ -356,7 +356,7 @@ Tests:
 
 ### Phase 10 - Real Server Smoke Tests
 
-Goal: prove the stack outside fake-server tests.
+Goal: prove the stack outside local server tests.
 
 Targets:
 
@@ -379,7 +379,7 @@ Acceptance:
 Milestone `RFC6120-M1` is complete when:
 
 - `XmppStreamReader` and `XmppStreamWriter` exist.
-- A fake server test covers open stream, features and graceful close.
-- `XmppStreamClient` can connect to the fake server and reach the first feature
+- A local server test covers open stream, features and graceful close.
+- `XmppStreamClient` can connect to the local server and reach the first feature
   negotiation decision.
 - All current RTT and XMPP model tests still pass.

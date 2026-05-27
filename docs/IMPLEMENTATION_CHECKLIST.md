@@ -69,7 +69,7 @@ item is implemented, tested and documented.
 - [x] Incoming stanza classification.
 - [x] Presence subscription workflow.
 - [x] Roster set/remove workflow.
-- [x] Normal chat send/receive fake-server scenario.
+- [x] Normal chat send/receive local server scenario.
 - [x] Real server two-account chat smoke test with `Tiedragon.XmppMessenger.RealServerSmoke`.
 
 ## RFC 7395 - XMPP Over WebSocket
@@ -166,7 +166,7 @@ item is implemented, tested and documented.
 - [x] Track inbound stanza count.
 - [x] Ack request/response.
 - [x] Resume support.
-- [x] Reconnect fake-server test.
+- [x] Reconnect local server test.
 
 ## XEP-0280 - Message Carbons
 
@@ -204,7 +204,7 @@ item is implemented, tested and documented.
 - [x] HTTP PUT upload executor.
 - [x] Send uploaded URL as message attachment with body fallback and XEP-0066 OOB payload.
 - [x] Server max-file-size discovery from XEP-0128 data forms.
-- [x] Fake-server upload service disco and slot response smoke path.
+- [x] Local server upload service disco and slot response smoke path.
 
 ## XEP-0384 - OMEMO Encryption
 
@@ -253,7 +253,7 @@ item is implemented, tested and documented.
 - [x] Local Prosody/Openfire smoke setup notes.
 - [x] Real-server smoke tool for TLS, hostname validation, two-account chat and MUC discovery/join/groupchat.
 - [x] Real-server smoke tool can create temporary XEP-0077 in-band registration accounts with `--register`.
-- [x] Local fake XMPP server tool for repeatable STARTTLS, chat, upload and MUC protocol smoke tests.
+- [x] Local XMPP server tool for repeatable STARTTLS, chat, upload and MUC protocol smoke tests.
 
 ## Accessibility Agent
 

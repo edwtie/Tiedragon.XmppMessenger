@@ -13,7 +13,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Tiedragon.LngPdk.Tool/Tiedragon.LngPdk.Tool.csproj" />
-    <Project Path="tools/Tiedragon.XmppMessenger.FakeServer/Tiedragon.XmppMessenger.FakeServer.csproj" />
+    <Project Path="tools/Tiedragon.XmppMessenger.LocalServer/Tiedragon.XmppMessenger.LocalServer.csproj" />
     <Project Path="tools/Tiedragon.XmppMessenger.RealServerSmoke/Tiedragon.XmppMessenger.RealServerSmoke.csproj" />
   </Folder>
 </Solution>

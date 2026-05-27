@@ -26,7 +26,7 @@ All RTT tests passed.
 ```
 
 These tests exercise the shared `Tiedragon.XmppMessenger.Core` library. The
-same library is used by the WinForms demo, AI bot console, fake XMPP server
+same library is used by the WinForms demo, AI bot console, local XMPP server
 smoke path and real-server smoke tool. That means the server checks below are
 not separate sample scripts; they validate the library's XMPP stream, TLS/SASL,
 resource binding, registration, roster and message code.
@@ -48,7 +48,7 @@ The zip recipe uses these source folders:
 - `php/lib` for PHP server-side helper code;
 - `php/rtt-websocket-server.php` for the local relay;
 - `php/schema.sql` and `php/config.example.php` for MySQL setup;
-- `tools/Tiedragon.XmppMessenger.FakeServer`;
+- `tools/Tiedragon.XmppMessenger.LocalServer`;
 - `tools/Tiedragon.XmppMessenger.RealServerSmoke`;
 - `samples/Tiedragon.XmppMessenger.AiBotConsole`;
 - `samples/Tiedragon.XmppMessenger.WebSocketConsole`;
@@ -65,7 +65,7 @@ The package script publishes the .NET tools and verifies that the zip contains:
 - `wamp\www\teletyptel\public` for the browser client;
 - `wamp\www\teletyptel\lib\Database.php` for the PHP account API;
 - `wamp\www\teletyptel\rtt-websocket-server.php` for the local relay;
-- `wamp\bin\teletyptel\FakeServer` and `RealServerSmoke` binaries;
+- `wamp\bin\teletyptel\LocalServer` and `RealServerSmoke` binaries;
 - `wamp\bin\teletyptel\AiBotConsole` and `WebSocketConsole` binaries.
 
 The zip is written to:
@@ -217,15 +217,15 @@ ws://127.0.0.1:8787
 Publish local .NET tools into the WAMP binary area:
 
 ```powershell
-dotnet publish tools\Tiedragon.XmppMessenger.FakeServer -c Release -o C:\wamp64\bin\teletyptel\FakeServer
+dotnet publish tools\Tiedragon.XmppMessenger.LocalServer -c Release -o C:\wamp64\bin\teletyptel\LocalServer
 dotnet publish tools\Tiedragon.XmppMessenger.RealServerSmoke -c Release -o C:\wamp64\bin\teletyptel\RealServerSmoke
 dotnet publish samples\Tiedragon.XmppMessenger.AiBotConsole -c Release -o C:\wamp64\bin\teletyptel\AiBotConsole
 ```
 
-Run the local fake XMPP server from the published binary:
+Run the local XMPP server from the published binary:
 
 ```powershell
-C:\wamp64\bin\teletyptel\FakeServer\Tiedragon.XmppMessenger.FakeServer.exe `
+C:\wamp64\bin\teletyptel\LocalServer\Tiedragon.XmppMessenger.LocalServer.exe `
   --listen 127.0.0.1 `
   --port 55222 `
   --domain localhost `
@@ -255,12 +255,12 @@ PASS TLS certificate accepted for configured host.
 PASS Two-account chat message delivered.
 ```
 
-## Run The STARTTLS Fake XMPP Server
+## Run The STARTTLS Local XMPP Server
 
-Start the local protocol harness:
+Start the local development XMPP server:
 
 ```powershell
-dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
+dotnet run --project tools/Tiedragon.XmppMessenger.LocalServer -- `
   --listen 127.0.0.1 `
   --port 55222 `
   --domain localhost
@@ -289,7 +289,7 @@ PASS Registration accepted for anna@localhost.
 PASS Two-account chat message delivered.
 ```
 
-This is the main local server validation. `FakeServer` supplies the controlled
+This is the main local server validation. `LocalServer` supplies the controlled
 STARTTLS/XMPP endpoint; `RealServerSmoke` connects through the real client
 library and proves that the client can register accounts, negotiate TLS/SASL,
 bind a resource and deliver a normal chat message between two accounts.
@@ -316,5 +316,5 @@ without MySQL by using browser storage.
 - Live real-time text UX in a browser client.
 - Repeatable local relay demo.
 - XMPP core models and negotiation code in C#.
-- Mandatory TLS path with local STARTTLS server smoke.
+- Mandatory TLS path with local STARTTLS XMPP server smoke.
 - A first public release shape that can be tested by other developers.

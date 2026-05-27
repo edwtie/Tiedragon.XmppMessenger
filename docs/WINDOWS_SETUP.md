@@ -42,7 +42,7 @@ wamp\www\teletyptel\lib
 wamp\www\teletyptel\rtt-websocket-server.php
 wamp\www\teletyptel\schema.sql
 wamp\www\teletyptel\config.example.php
-wamp\bin\teletyptel\FakeServer
+wamp\bin\teletyptel\LocalServer
 wamp\bin\teletyptel\RealServerSmoke
 wamp\bin\teletyptel\AiBotConsole
 wamp\bin\teletyptel\WebSocketConsole
@@ -146,10 +146,10 @@ ws://127.0.0.1:8787
 
 ## .NET Smoke Tools
 
-Run the fake server:
+Run the local server:
 
 ```powershell
-& "C:\Program Files\Teletyptel\bin\FakeServer\Tiedragon.XmppMessenger.FakeServer.exe" `
+& "C:\Program Files\Teletyptel\bin\LocalServer\Tiedragon.XmppMessenger.LocalServer.exe" `
   --listen 127.0.0.1 `
   --port 55222 `
   --domain localhost `
@@ -182,7 +182,7 @@ PASS Two-account chat message delivered.
 - Use HTTPS/WSS on public Windows Server deployments.
 - Keep only `public` web-accessible.
 - Keep `config.php` and logs outside the public document root.
-- Use firewall rules so the local relay and fake server are not exposed by
+- Use firewall rules so the local relay and local server are not exposed by
   accident.
 - The PHP relay is still an Alpha development bridge, not the final production
   XMPP server.

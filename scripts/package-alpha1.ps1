@@ -112,7 +112,7 @@ function Add-LinuxLaunchers([string]$binRoot) {
 }
 
 $publishItems = @(
-    @{ Project = "tools\Tiedragon.XmppMessenger.FakeServer"; Name = "FakeServer" },
+    @{ Project = "tools\Tiedragon.XmppMessenger.LocalServer"; Name = "LocalServer" },
     @{ Project = "tools\Tiedragon.XmppMessenger.RealServerSmoke"; Name = "RealServerSmoke" },
     @{ Project = "samples\Tiedragon.XmppMessenger.AiBotConsole"; Name = "AiBotConsole" },
     @{ Project = "samples\Tiedragon.XmppMessenger.WebSocketConsole"; Name = "WebSocketConsole" }
@@ -163,8 +163,8 @@ if ($Target -eq "Windows" -or $Target -eq "All") {
     "wamp\www\teletyptel\lib\Database.php",
     "wamp\www\teletyptel\rtt-websocket-server.php",
     "wamp\www\teletyptel\schema.sql",
-    "wamp\bin\teletyptel\FakeServer\Tiedragon.XmppMessenger.FakeServer.exe",
-    "wamp\bin\teletyptel\FakeServer\Tiedragon.XmppMessenger.Core.dll",
+    "wamp\bin\teletyptel\LocalServer\Tiedragon.XmppMessenger.LocalServer.exe",
+    "wamp\bin\teletyptel\LocalServer\Tiedragon.XmppMessenger.Core.dll",
     "wamp\bin\teletyptel\RealServerSmoke\Tiedragon.XmppMessenger.RealServerSmoke.exe",
     "wamp\bin\teletyptel\RealServerSmoke\Tiedragon.XmppMessenger.Core.dll",
     "wamp\bin\teletyptel\AiBotConsole\Tiedragon.XmppMessenger.AiBotConsole.exe",
@@ -181,9 +181,9 @@ if ($Target -eq "Linux" -or $Target -eq "All") {
         "linux\var\www\teletyptel\lib\Database.php",
         "linux\var\www\teletyptel\rtt-websocket-server.php",
         "linux\var\www\teletyptel\schema.sql",
-        "linux\opt\teletyptel\bin\FakeServer\Tiedragon.XmppMessenger.FakeServer",
-        "linux\opt\teletyptel\bin\FakeServer\run.sh",
-        "linux\opt\teletyptel\bin\FakeServer\Tiedragon.XmppMessenger.Core.dll",
+        "linux\opt\teletyptel\bin\LocalServer\Tiedragon.XmppMessenger.LocalServer",
+        "linux\opt\teletyptel\bin\LocalServer\run.sh",
+        "linux\opt\teletyptel\bin\LocalServer\Tiedragon.XmppMessenger.Core.dll",
         "linux\opt\teletyptel\bin\RealServerSmoke\Tiedragon.XmppMessenger.RealServerSmoke",
         "linux\opt\teletyptel\bin\RealServerSmoke\run.sh",
         "linux\opt\teletyptel\bin\RealServerSmoke\Tiedragon.XmppMessenger.Core.dll",

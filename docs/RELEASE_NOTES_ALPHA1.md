@@ -20,7 +20,7 @@ instead of only reading a concept description.
 - Local account profile storage and optional MySQL API.
 - Legacy smiley rendering.
 - C# XMPP core models and protocol helpers.
-- STARTTLS fake XMPP server with registration and chat smoke.
+- STARTTLS local XMPP server with registration and chat smoke.
 - Real-server smoke tool for TLS/hostname/XEP-0077/two-account chat checks.
 
 ## Quick Start
@@ -37,7 +37,7 @@ Then open `php/public/chat.html` in two browser windows and connect to
 ## Security Position
 
 - XMPP client settings require TLS by default.
-- The local fake XMPP server requires STARTTLS.
+- The local XMPP server requires STARTTLS.
 - Local self-signed smoke testing uses certificate SHA-256 pinning.
 - The PHP relay is local development infrastructure and does not provide
   production authentication or transport security.

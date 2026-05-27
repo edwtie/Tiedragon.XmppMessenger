@@ -88,7 +88,7 @@ Teletyptel implements the MUC client helper layer in separable pieces:
 5. Request, parse, submit or cancel owner room-configuration data forms.
 6. Request or set admin items for affiliation and role flows such as member lists, bans and kicks.
 
-The fake XMPP server returns sample room discovery, room items, configuration form and admin list responses for smoke testing. Real Prosody/ejabberd interoperability is tracked separately because permission models and enabled modules differ per deployment.
+The local XMPP server returns sample room discovery, room items, configuration form and admin list responses for smoke testing. Real Prosody/ejabberd interoperability is tracked separately because permission models and enabled modules differ per deployment.
 
 ## XEP-0363 HTTP File Upload
 
@@ -101,7 +101,7 @@ Teletyptel implements the client side in the same sequence as the standard:
 5. Upload bytes through HTTP PUT with exact `Content-Length`, `Content-Type` and only the allowed headers `Authorization`, `Cookie` and `Expires`.
 6. Send the GET URL to the recipient as a normal message body plus a `jabber:x:oob` URL payload for clients that understand out-of-band links.
 
-The fake XMPP server advertises `urn:xmpp:http:upload:0`, reports `max-file-size` through the discovery data form and returns slot responses for smoke testing. The local PHP upload endpoint remains a browser demo path; real XMPP file upload should use the XEP-0363 slot and PUT flow.
+The local XMPP server advertises `urn:xmpp:http:upload:0`, reports `max-file-size` through the discovery data form and returns slot responses for smoke testing. The local PHP upload endpoint remains a browser demo path; real XMPP file upload should use the XEP-0363 slot and PUT flow.
 
 ## XEP-0245 `/me` Command
 

@@ -7,7 +7,7 @@ history.
 
 The project is built around open protocols rather than a closed messaging
 network. The current codebase contains a web client, PHP relay for local demos,
-C# XMPP protocol core, STARTTLS fake server, real-server smoke tool and English
+C# XMPP protocol core, STARTTLS local server, real-server smoke tool and English
 and Dutch localization files.
 
 ## Download
@@ -33,7 +33,7 @@ and Dutch localization files.
 - Account profile panel with local storage and optional MySQL API.
 - Legacy smiley rendering.
 - C# XMPP core for TLS/SASL/bind/roster/presence/chat and multiple XEP models.
-- STARTTLS local fake server and real-server smoke tools.
+- STARTTLS local server and real-server smoke tools.
 
 ## Standards Direction
 

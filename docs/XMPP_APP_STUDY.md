@@ -44,7 +44,7 @@ There are already mature clients for that. The stronger position is:
 - accessibility-friendly live text experiments;
 - AI/chatbot test clients;
 - language-package based UI text through LngPdk;
-- protocol tests and fake-server tests from the start.
+- protocol tests and local server tests from the start.
 
 ## Architecture Lesson
 

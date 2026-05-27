@@ -224,18 +224,19 @@ Openfire can be used as a second smoke target after Prosody:
 - enable WebSocket if installed/available;
 - enable monitoring/archive plugins only when testing XEP-0313 behavior.
 
-## Local Fake Server
+## Local Server
 
-`Tiedragon.XmppMessenger.FakeServer` is a local STARTTLS protocol harness built
-from the fake-server test flow. It is not a production XMPP server and must not
-be exposed to a network. Use it for fast repeatable client tests without
-creating public server accounts. TLS is mandatory; the server advertises
+`Tiedragon.XmppMessenger.LocalServer` is a local STARTTLS development XMPP
+server. It implements real stream, TLS, SASL, bind, chat, MUC and upload-slot
+protocol paths for repeatable client tests without creating public server
+accounts. It is not production-hardened, so keep it on localhost or a protected
+lab network. TLS is mandatory; the server advertises
 `<starttls><required/></starttls>` before SASL.
 
 Start it with two preloaded accounts:
 
 ```powershell
-dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- `
+dotnet run --project tools/Tiedragon.XmppMessenger.LocalServer -- `
   --listen 127.0.0.1 `
   --port 55222 `
   --domain localhost `
@@ -254,13 +255,13 @@ dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
   --account2 anna@localhost/desktop `
   --password2 secret `
   --timeout-seconds 20 `
-  --cert-sha256 <fingerprint printed by the fake server>
+  --cert-sha256 <fingerprint printed by the local server>
 ```
 
 Add `--register` to the smoke command when you want the tool to create the
 temporary accounts through XEP-0077 instead of preloading them with `--account`.
 
-Implemented fake-server behavior:
+Implemented local server behavior:
 
 - XEP-0077 account registration IQs;
 - SASL PLAIN authentication;
@@ -271,7 +272,7 @@ Implemented fake-server behavior:
 - MUC conference discovery, room discovery/items, join self-presence, groupchat
   room broadcast, owner configuration form and admin item query.
 
-Local fake-server MUC smoke:
+Local server MUC smoke:
 
 ```powershell
 dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
@@ -282,7 +283,7 @@ dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
   --account2 anna@localhost/desktop `
   --password2 secret `
   --bad-host wrong.example.org `
-  --cert-sha256 <fingerprint printed by the fake server> `
+  --cert-sha256 <fingerprint printed by the local server> `
   --muc-service conference.localhost `
   --muc-room team@conference.localhost `
   --muc-admin `
@@ -291,7 +292,7 @@ dotnet run --project tools/Tiedragon.XmppMessenger.RealServerSmoke -- `
 
 ## Current Status
 
-The repository has fake-server tests for stream negotiation, SASL, bind, roster,
+The repository has local server tests for stream negotiation, SASL, bind, roster,
 presence, normal chat, stream management, RTT and MUC. The real-server smoke
 tool now exercises the same MUC discovery/join/groupchat path against local
 Prosody. ejabberd/Openfire remain useful second and third interoperability

@@ -10,16 +10,16 @@ using System.Xml;
 using System.Xml.Linq;
 using Tiedragon.XmppMessenger.Core.Xmpp;
 
-var options = FakeServerOptions.Parse(args);
+var options = LocalServerOptions.Parse(args);
 if (options is null)
 {
-    FakeServerOptions.PrintUsage();
+    LocalServerOptions.PrintUsage();
     Environment.ExitCode = 2;
     return;
 }
 
 using var certificate = options.LoadOrCreateCertificate();
-var state = new FakeXmppServerState(options.Domain, certificate);
+var state = new LocalXmppServerState(options.Domain, certificate);
 foreach (var account in options.Accounts)
 {
     state.Accounts[account.Username] = account.Password;
@@ -34,8 +34,9 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 var listener = new TcpListener(IPAddress.Parse(options.ListenAddress), options.Port);
 listener.Start();
-Console.WriteLine($"Fake XMPP server listening on {options.ListenAddress}:{options.Port} for domain {options.Domain}");
-Console.WriteLine("Features: STARTTLS required, XEP-0077, XEP-0363 slot responses, SASL PLAIN, resource bind, empty roster, direct chat relay");
+Console.WriteLine($"Tiedragon Local XMPP server listening on {options.ListenAddress}:{options.Port} for domain {options.Domain}");
+Console.WriteLine("Features: STARTTLS required, XEP-0077, XEP-0363 slot responses, XEP-0045 local MUC, SASL PLAIN, resource bind, empty roster, direct chat relay");
+Console.WriteLine("Scope: local development and smoke testing server; not hardened for internet-facing production use.");
 Console.WriteLine($"Certificate SHA-256: {Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256)).ToLowerInvariant()}");
 
 try
@@ -56,10 +57,10 @@ finally
 
 static async Task HandleClientAsync(
     TcpClient client,
-    FakeXmppServerState state,
+    LocalXmppServerState state,
     CancellationToken cancellationToken)
 {
-    var session = new FakeXmppSession(client, state);
+    var session = new LocalXmppSession(client, state);
     state.AddSession(session);
     Console.WriteLine("client connected");
 
@@ -82,10 +83,10 @@ static async Task HandleClientAsync(
     }
 }
 
-sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
+sealed class LocalXmppServerState(string domain, X509Certificate2 certificate)
 {
-    private readonly ConcurrentDictionary<string, FakeXmppSession> _sessionsByBareJid = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, FakeXmppSession>> _rooms = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, LocalXmppSession> _sessionsByBareJid = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, LocalXmppSession>> _rooms = new(StringComparer.OrdinalIgnoreCase);
 
     public string Domain { get; } = domain;
 
@@ -93,7 +94,7 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
 
     public ConcurrentDictionary<string, string> Accounts { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public void AddSession(FakeXmppSession session)
+    public void AddSession(LocalXmppSession session)
     {
         if (session.BareJid is not null)
         {
@@ -101,7 +102,7 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
         }
     }
 
-    public void UpdateSessionJid(FakeXmppSession session)
+    public void UpdateSessionJid(LocalXmppSession session)
     {
         if (session.BareJid is not null)
         {
@@ -109,7 +110,7 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
         }
     }
 
-    public void RemoveSession(FakeXmppSession session)
+    public void RemoveSession(LocalXmppSession session)
     {
         if (session.BareJid is not null)
         {
@@ -128,15 +129,15 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
         }
     }
 
-    public bool TryGetSession(string jid, out FakeXmppSession? session)
+    public bool TryGetSession(string jid, out LocalXmppSession? session)
     {
         var bare = BareJid(jid);
         return _sessionsByBareJid.TryGetValue(bare, out session);
     }
 
-    public void JoinRoom(string roomJid, string nick, FakeXmppSession session)
+    public void JoinRoom(string roomJid, string nick, LocalXmppSession session)
     {
-        var room = _rooms.GetOrAdd(roomJid, _ => new ConcurrentDictionary<string, FakeXmppSession>(StringComparer.OrdinalIgnoreCase));
+        var room = _rooms.GetOrAdd(roomJid, _ => new ConcurrentDictionary<string, LocalXmppSession>(StringComparer.OrdinalIgnoreCase));
         room[nick] = session;
     }
 
@@ -148,14 +149,14 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
         }
     }
 
-    public IReadOnlyList<(string Nick, FakeXmppSession Session)> GetRoomOccupants(string roomJid)
+    public IReadOnlyList<(string Nick, LocalXmppSession Session)> GetRoomOccupants(string roomJid)
     {
         return _rooms.TryGetValue(roomJid, out var room)
             ? room.Select(occupant => (occupant.Key, occupant.Value)).ToArray()
             : [];
     }
 
-    public string? GetRoomNick(string roomJid, FakeXmppSession session)
+    public string? GetRoomNick(string roomJid, LocalXmppSession session)
     {
         if (!_rooms.TryGetValue(roomJid, out var room))
         {
@@ -172,7 +173,7 @@ sealed class FakeXmppServerState(string domain, X509Certificate2 certificate)
     }
 }
 
-sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
+sealed class LocalXmppSession(TcpClient client, LocalXmppServerState state)
 {
     private Stream _stream = client.GetStream();
     private readonly StringBuilder _buffer = new();
@@ -329,7 +330,7 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
         if (payload?.Name == XName.Get("bind", "urn:ietf:params:xml:ns:xmpp-bind") && type == "set")
         {
             var requestedResource = payload.Element(XName.Get("resource", "urn:ietf:params:xml:ns:xmpp-bind"))?.Value;
-            var resource = string.IsNullOrWhiteSpace(requestedResource) ? "fake" : requestedResource;
+            var resource = string.IsNullOrWhiteSpace(requestedResource) ? "local" : requestedResource;
             FullJid = $"{BareJid}/{resource}";
             await WriteAsync($"""
                 <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
@@ -356,7 +357,7 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
             if (IsMucAddress(to))
             {
                 var identityType = to.Contains('@', StringComparison.Ordinal) ? "text" : "service";
-                var identityName = to.Contains('@', StringComparison.Ordinal) ? "Team room" : "Tiedragon Fake Conference";
+                var identityName = to.Contains('@', StringComparison.Ordinal) ? "Team room" : "Tiedragon Local Conference";
                 await WriteAsync($"""
                     <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
                       <query xmlns="http://jabber.org/protocol/disco#info">
@@ -371,7 +372,7 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
             await WriteAsync($"""
                 <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
                   <query xmlns="http://jabber.org/protocol/disco#info">
-                    <identity category="server" type="im" name="Tiedragon Fake XMPP Server"/>
+                    <identity category="server" type="im" name="Tiedragon Local XMPP Server"/>
                     <identity category="store" type="file" name="HTTP File Upload"/>
                     <feature var="jabber:iq:register"/>
                     <feature var="urn:xmpp:rtt:0"/>
@@ -491,10 +492,10 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
             await WriteAsync($"""
                 <iq xmlns="jabber:client" type="result" id="{Escape(id)}">
                   <slot xmlns="urn:xmpp:http:upload:0">
-                    <put url="https://upload.{Escape(state.Domain)}/fake/{token}/{escapedName}">
+                    <put url="https://upload.{Escape(state.Domain)}/local/{token}/{escapedName}">
                       <header name="Expires">{DateTimeOffset.UtcNow.AddMinutes(5):yyyy-MM-ddTHH:mm:ssZ}</header>
                     </put>
-                    <get url="https://download.{Escape(state.Domain)}/fake/{token}/{escapedName}"/>
+                    <get url="https://download.{Escape(state.Domain)}/local/{token}/{escapedName}"/>
                   </slot>
                 </iq>
                 """, cancellationToken);
@@ -926,15 +927,15 @@ sealed class FakeXmppSession(TcpClient client, FakeXmppServerState state)
     }
 }
 
-sealed record FakeAccount(string Username, string Password);
+sealed record LocalAccount(string Username, string Password);
 
-sealed record FakeServerOptions(
+sealed record LocalServerOptions(
     string ListenAddress,
     int Port,
     string Domain,
     string? CertificatePath,
     string? CertificatePassword,
-    IReadOnlyList<FakeAccount> Accounts)
+    IReadOnlyList<LocalAccount> Accounts)
 {
     public X509Certificate2 LoadOrCreateCertificate()
     {
@@ -949,7 +950,7 @@ sealed record FakeServerOptions(
         return CreateEphemeralCertificate(Domain);
     }
 
-    public static FakeServerOptions? Parse(string[] args)
+    public static LocalServerOptions? Parse(string[] args)
     {
         var values = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < args.Length; index++)
@@ -981,9 +982,9 @@ sealed record FakeServerOptions(
         }
 
         var accounts = values.TryGetValue("account", out var accountValues)
-            ? accountValues.Select(ParseAccount).Where(account => account is not null).Cast<FakeAccount>().ToArray()
-            : Array.Empty<FakeAccount>();
-        return new FakeServerOptions(
+            ? accountValues.Select(ParseAccount).Where(account => account is not null).Cast<LocalAccount>().ToArray()
+            : Array.Empty<LocalAccount>();
+        return new LocalServerOptions(
             listen,
             port,
             domain,
@@ -996,11 +997,11 @@ sealed record FakeServerOptions(
     {
         Console.WriteLine("""
             Usage:
-              dotnet run --project tools/Tiedragon.XmppMessenger.FakeServer -- \
+              dotnet run --project tools/Tiedragon.XmppMessenger.LocalServer -- \
                 --listen 127.0.0.1 \
                 --port 5222 \
                 --domain localhost \
-                --cert-path .tmp/fake-xmpp-localhost.pfx \
+                --cert-path .tmp/local-xmpp-localhost.pfx \
                 --cert-password changeit \
                 --account edward:secret \
                 --account anna:secret
@@ -1016,7 +1017,7 @@ sealed record FakeServerOptions(
         return values.TryGetValue(name, out var list) && list.Count > 0 ? list[^1] : fallback;
     }
 
-    private static FakeAccount? ParseAccount(string value)
+    private static LocalAccount? ParseAccount(string value)
     {
         var separator = value.IndexOf(':');
         if (separator <= 0 || separator == value.Length - 1)
@@ -1024,7 +1025,7 @@ sealed record FakeServerOptions(
             return null;
         }
 
-        return new FakeAccount(value[..separator], value[(separator + 1)..]);
+        return new LocalAccount(value[..separator], value[(separator + 1)..]);
     }
 
     private static X509Certificate2 CreateEphemeralCertificate(string domain)

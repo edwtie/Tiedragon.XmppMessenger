@@ -94,5 +94,5 @@ layer.
 Every XEP implementation needs:
 
 - serializer/parser tests;
-- fake-server/client tests;
+- local server/client tests;
 - at least one interoperability note against existing clients where practical.
