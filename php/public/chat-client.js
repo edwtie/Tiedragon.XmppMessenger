@@ -107,6 +107,8 @@
     relayUrlInput: byId("relayUrlInput"),
     displayNameInput: byId("displayNameInput"),
     jidInput: byId("jidInput"),
+    passwordInput: byId("passwordInput"),
+    rememberPasswordToggle: byId("rememberPasswordToggle"),
     peerInput: byId("peerInput"),
     phoneInput: byId("phoneInput"),
     providerInput: byId("providerInput"),
@@ -148,6 +150,8 @@
     el.peerInput.addEventListener("change", updateRelayConversationMeta);
     el.displayNameInput.addEventListener("change", renderActiveConversation);
     el.jidInput.addEventListener("change", renderActiveConversation);
+    el.passwordInput.addEventListener("input", updateAccountPasswordStatus);
+    el.rememberPasswordToggle.addEventListener("change", updateAccountPasswordStatus);
     el.xmppOpenButton.addEventListener("click", connectXmppWebSocket);
     el.xmppCloseButton.addEventListener("click", closeXmppWebSocket);
     el.clearLogButton.addEventListener("click", () => {
@@ -258,6 +262,8 @@
   function applyAccountProfile(account) {
     el.displayNameInput.value = account.displayName ?? el.displayNameInput.value;
     el.jidInput.value = createUniqueJid(account.jid ?? el.jidInput.value);
+    el.passwordInput.value = account.rememberPassword ? account.password ?? "" : "";
+    el.rememberPasswordToggle.checked = account.rememberPassword === true;
     el.peerInput.value = account.peer ?? el.peerInput.value;
     el.phoneInput.value = account.phoneNumber ?? "";
     el.providerInput.value = account.providerId ?? "";
@@ -300,6 +306,8 @@
       accountId: state.account?.accountId ?? "local-account",
       jid: stripGeneratedResourceSuffix(el.jidInput.value.trim()),
       displayName: el.displayNameInput.value.trim() || "Me",
+      rememberPassword: el.rememberPasswordToggle.checked,
+      password: el.rememberPasswordToggle.checked ? el.passwordInput.value : "",
       phoneNumber: el.phoneInput.value.trim(),
       providerId: el.providerInput.value.trim() || state.account?.providerId || "example-provider",
       accessibilityProfileId: state.account?.accessibilityProfileId ?? "default-live-text",
@@ -329,7 +337,20 @@
   }
 
   function updateAccountStatus(text) {
-    el.accountStatus.textContent = `${text} - ${el.jidInput.value || "no JID"}`;
+    const passwordState = passwordStatusText();
+    el.accountStatus.textContent = `${text} - ${el.jidInput.value || "no JID"} - ${passwordState}`;
+  }
+
+  function updateAccountPasswordStatus() {
+    updateAccountStatus(localStorage.getItem(accountStorageKey) ? "Local account saved" : "Default account profile");
+  }
+
+  function passwordStatusText() {
+    if (!el.passwordInput.value) {
+      return "no password";
+    }
+
+    return el.rememberPasswordToggle.checked ? "password saved locally" : "password only this session";
   }
 
   function updateRelayConversationMeta() {

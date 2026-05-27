@@ -1,4 +1,4 @@
-const CACHE_NAME = "tiedragon-xmpp-webclient-v13";
+const CACHE_NAME = "tiedragon-xmpp-webclient-v14";
 const ASSETS = [
   "chat.html",
   "chat-client.css",
