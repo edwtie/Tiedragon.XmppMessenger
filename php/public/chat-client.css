@@ -229,6 +229,24 @@ body.account-gate .modal-shell {
   font-size: 15px;
 }
 
+.account-advanced {
+  margin-top: 2px;
+}
+
+.account-advanced summary {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  list-style-position: inside;
+  padding: 8px 10px;
+}
+
+.account-advanced[open] summary {
+  margin-bottom: 12px;
+}
+
 .account-dialog-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -262,6 +280,35 @@ body.account-gate .modal-shell {
 .modal-actions {
   justify-content: flex-end;
   border-top: 1px solid var(--line);
+}
+
+.account-start-dialog .account-dialog-card {
+  width: min(440px, calc(100vw - 32px));
+}
+
+.account-start-dialog .modal-body {
+  display: grid;
+  gap: 12px;
+}
+
+.account-start-dialog .account-start-hidden {
+  display: none;
+}
+
+.account-start-dialog .account-dialog-grid {
+  grid-template-columns: 1fr;
+}
+
+.account-start-dialog .dialog-status {
+  min-height: 0;
+}
+
+.account-start-dialog .modal-actions {
+  align-items: stretch;
+}
+
+.account-start-dialog .modal-actions button {
+  flex: 1 1 0;
 }
 
 .icon-button {

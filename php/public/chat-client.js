@@ -252,8 +252,12 @@
     saveAccountButton: byId("saveAccountButton"),
     resetAccountButton: byId("resetAccountButton"),
     accountDialog: byId("accountDialog"),
+    accountDialogTitle: byId("accountDialogTitle"),
+    accountDialogSubtitle: byId("accountDialogSubtitle"),
     closeAccountDialogButton: byId("closeAccountDialogButton"),
     cancelAccountDialogButton: byId("cancelAccountDialogButton"),
+    dialogRealAccountTitle: byId("dialogRealAccountTitle"),
+    dialogAdvancedDetails: byId("dialogAdvancedDetails"),
     dialogSessionProfileInput: byId("dialogSessionProfileInput"),
     dialogDisplayNameInput: byId("dialogDisplayNameInput"),
     dialogJidInput: byId("dialogJidInput"),
@@ -837,6 +841,10 @@
     renderTabs();
     renderConversations();
     renderActiveConversation();
+    if (!el.accountDialog.hidden) {
+      updateAccountDialogMode();
+    }
+
     if (state.account) {
       updateAccountStatus(accountStatusPrefix());
     }
@@ -933,6 +941,7 @@
     document.body.classList.toggle("account-gate", state.accountGateRequired);
     el.closeAccountDialogButton.hidden = state.accountGateRequired;
     el.cancelAccountDialogButton.hidden = state.accountGateRequired;
+    updateAccountDialogMode();
     updateConnectButtonAvailability();
   }
 
@@ -944,13 +953,35 @@
     }
     syncAccountDialogFromControls();
     el.dialogAccountStatus.textContent = state.accountGateRequired
-      ? accountDialogStatusText("account.start_required", "Sign in or create an account before Teletyptel opens.")
+      ? t("account.start_required", "Sign in or create an account before Teletyptel opens.")
       : accountDialogStatusText("account.ready", "Enter or create an account profile, then connect.");
     el.accountDialog.hidden = false;
     document.body.classList.add("modal-open");
     window.setTimeout(() => {
-      (el.dialogJidInput.value ? el.dialogPasswordInput : el.dialogJidInput).focus();
+      (state.accountGateRequired ? el.dialogJidInput : (el.dialogJidInput.value ? el.dialogPasswordInput : el.dialogJidInput)).focus();
     }, 0);
+  }
+
+  function updateAccountDialogMode() {
+    const startMode = state.accountGateRequired === true;
+    el.accountDialog.classList.toggle("account-start-dialog", startMode);
+    el.accountDialogTitle.textContent = startMode
+      ? t("account.start_title", "Sign in")
+      : t("account.dialog_title", "Account and password");
+    el.accountDialogSubtitle.textContent = startMode
+      ? t("account.start_subtitle", "Use your XMPP account. New users can create an account.")
+      : t("account.dialog_subtitle", "Use a real XMPP JID, password and server settings.");
+    el.dialogRealAccountTitle.textContent = startMode
+      ? t("section.sign_in", "Sign in")
+      : t("section.real_account", "Real account");
+    el.dialogAdvancedDetails.open = !startMode;
+    el.dialogSaveAccountButton.hidden = startMode;
+    el.dialogConnectButton.textContent = startMode
+      ? t("button.sign_in", "Sign in")
+      : t("button.save_connect", "Save and connect");
+    el.dialogCreateAccountButton.textContent = startMode
+      ? t("button.sign_up", "New account")
+      : t("button.create_account", "Create account");
   }
 
   function closeAccountDialog() {
@@ -980,7 +1011,7 @@
     }
 
     el.dialogSessionProfileInput.value = el.sessionProfileInput.value;
-    el.dialogDisplayNameInput.value = el.displayNameInput.value;
+    el.dialogDisplayNameInput.value = state.accountGateRequired ? "" : el.displayNameInput.value;
     el.dialogJidInput.value = stripGeneratedResourceSuffix(el.jidInput.value.trim());
     el.dialogPasswordInput.value = el.passwordInput.value;
     el.dialogRememberPasswordToggle.checked = el.rememberPasswordToggle.checked || state.accountGateRequired;
@@ -1122,6 +1153,10 @@
   }
 
   function accountDialogStatusText(key, fallback) {
+    if (state.accountGateRequired) {
+      return t(key, fallback);
+    }
+
     const password = el.dialogPasswordInput.value
       ? (el.dialogRememberPasswordToggle.checked ? t("account.password_saved", "account kept for this browser session") : t("account.password_session", "password only this session"))
       : t("account.no_password", "no password");
