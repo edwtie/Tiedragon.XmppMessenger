@@ -63,6 +63,8 @@
   const jingleRttSyncNamespace = "urn:xmpp:jingle:apps:rtt-sync:0";
   const jingleRttSyncDataChannelLabel = "rtt";
   const jingleRttSyncMaxSkewMs = 700;
+  const t140Backspace = "\b";
+  const t140Delete = "\u007f";
   const locationStaleAfterMs = 5 * 60 * 1000;
   const sessionProfile = loadSessionProfile();
   const hasInitialAccountProfile = Boolean(loadSavedAccountProfile(sessionProfile));
@@ -3569,6 +3571,7 @@
     }
 
     channel.teletyptelRttConfigured = true;
+    channel.binaryType = "arraybuffer";
     call.rttChannel = channel;
     call.rttSync = normalizeJingleRttSyncDescriptor(call.rttSync, call.sid, "negotiating");
     call.rttSync.label = channel.label || jingleRttSyncDataChannelLabel;
@@ -3602,7 +3605,7 @@
     });
 
     channel.addEventListener("message", (event) => {
-      handleJingleRttSyncPacket(call, event.data);
+      void handleJingleRttSyncPacket(call, event.data);
     });
   }
 
@@ -3657,12 +3660,18 @@
     }
   }
 
-  function handleJingleRttSyncPacket(call, data) {
+  async function handleJingleRttSyncPacket(call, data) {
+    const text = await decodeRttDataChannelText(data);
+    if (text === null || text === "") {
+      appendDebug("jingle-rtt-skip", "Ignored empty RTT datachannel packet");
+      return;
+    }
+
     let packet;
     try {
-      packet = JSON.parse(String(data ?? ""));
+      packet = JSON.parse(text);
     } catch {
-      appendDebug("jingle-rtt-skip", "Ignored non-JSON RTT datachannel packet");
+      applyT140DataChannelText(call, text);
       return;
     }
 
@@ -3683,6 +3692,87 @@
     }
 
     applyJingleRttSyncDraft(call, packet);
+  }
+
+  async function decodeRttDataChannelText(data) {
+    if (typeof data === "string") {
+      return data;
+    }
+
+    if (data instanceof ArrayBuffer) {
+      return new TextDecoder("utf-8", { fatal: false }).decode(data);
+    }
+
+    if (ArrayBuffer.isView(data)) {
+      return new TextDecoder("utf-8", { fatal: false }).decode(data);
+    }
+
+    if (typeof Blob !== "undefined" && data instanceof Blob) {
+      return await data.text();
+    }
+
+    return data == null ? null : String(data);
+  }
+
+  function applyT140DataChannelText(call, payload) {
+    const conversation = ensureConversationForPeer(call.peer, "contact", displayNameForJid(call.peer));
+    if (!conversation) {
+      return;
+    }
+
+    conversation.remoteText = applyT140Delta(conversation.remoteText || "", payload);
+    conversation.remoteFrom = call.peer;
+    conversation.remoteDraftUpdatedAt = new Date();
+    conversation.clientState = "active";
+    conversation.clientStateUpdatedAt = new Date();
+    setPeerPresence(conversation.peer, "online");
+    appendDebug("jingle-rtt-t140-in", `<t140 sid="${escapeXml(call.sid)}">${escapeXml(payload)}</t140>`);
+    updateRemoteDraftMessage(conversation.id);
+  }
+
+  function applyT140Delta(previous, payload) {
+    let result = String(previous ?? "");
+    let previousWasCarriageReturn = false;
+
+    for (const char of Array.from(String(payload ?? ""))) {
+      if (char === t140Backspace || char === t140Delete) {
+        result = Array.from(result).slice(0, -1).join("");
+        previousWasCarriageReturn = false;
+        continue;
+      }
+
+      if (char === "\r") {
+        result += "\n";
+        previousWasCarriageReturn = true;
+        continue;
+      }
+
+      if (char === "\n") {
+        if (!previousWasCarriageReturn) {
+          result += "\n";
+        }
+        previousWasCarriageReturn = false;
+        continue;
+      }
+
+      previousWasCarriageReturn = false;
+      if (isIgnoredT140Control(char)) {
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
+  }
+
+  function isIgnoredT140Control(char) {
+    if (char === "\t") {
+      return false;
+    }
+
+    const code = char.codePointAt(0);
+    return code < 0x20 || (code >= 0x80 && code <= 0x9f);
   }
 
   function applyJingleRttSyncDraft(call, packet) {

@@ -47,6 +47,8 @@ item is implemented, tested and documented.
   location and PIDF-LO/RFC 6442 for future emergency gateway interop.
 - [x] ProtoXEP Jingle synchronized RTT implemented in the web client as a
   co-session WebRTC datachannel with XEP-0301 relay fallback.
+- [x] `rtt` datachannel listens for raw UTF-8 T.140 payloads and applies
+  backspace/delete plus CR/LF as live call text.
 - [x] ProtoXEP Jingle synchronized RTT Playwright retest passed with two fresh
   browser profiles: video call connected, `rtt` datachannel opened,
   `jingle-rtt-out`/`jingle-rtt-in` logged, live draft displayed and final

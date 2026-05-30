@@ -428,6 +428,13 @@ named `rtt`. While that channel is open, live drafts and final chat text are
 sent as `jingle-rtt` packets in the same call context. If the channel is not
 available, the client falls back to normal XEP-0301 relay RTT.
 
+The same `rtt` datachannel now also listens for raw T.140 text payloads. That
+means a peer that sends plain UTF-8 T.140 characters, including backspace/delete
+and CR/LF line breaks, is treated as live call text instead of being ignored.
+The current browser sender still uses the JSON `jingle-rtt` wrapper for final
+message metadata; the raw T.140 listener is the interop path for peers that send
+T.140 directly over the negotiated datachannel.
+
 Local verification: a Playwright smoke test with two fresh browser profiles
 started a video call, opened the `rtt` datachannel, logged
 `jingle-rtt-out`/`jingle-rtt-in`, showed the remote live draft and delivered the
