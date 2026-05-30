@@ -97,6 +97,9 @@ var tests = new (string Name, Action Test)[]
     ("XMPP stanza error parses condition and type", XmppStanzaErrorParsesConditionAndType),
     ("XMPP real time text message serializes fallback and RTT", XmppRealTimeTextMessageSerializesFallbackAndRtt),
     ("XMPP real time text message parses fallback and RTT", XmppRealTimeTextMessageParsesFallbackAndRtt),
+    ("T.140 codec applies UTF8 text and erasures", T140CodecAppliesUtf8TextAndErasures),
+    ("RTP T.140 packetizer serializes packet", RtpT140PacketizerSerializesPacket),
+    ("RTP T.140 redundancy payload roundtrips", RtpT140RedundancyPayloadRoundtrips),
     ("RTT conversation manager tracks per contact state", RttConversationManagerTracksPerContactState),
     ("XMPP incoming stanza exposes real time text", XmppIncomingStanzaExposesRealTimeText),
     ("XMPP chat message serializes stanza", XmppChatMessageSerializesStanza),
@@ -3517,6 +3520,56 @@ static void XmppRealTimeTextMessageParsesFallbackAndRtt()
     Equal("Hallo", message.BodyFallback);
     Equal(RttEvent.Reset, message.Packet.Event);
     Equal(3, message.Packet.Sequence);
+}
+
+static void T140CodecAppliesUtf8TextAndErasures()
+{
+    var text = T140Codec.ApplyBlock("Helo", T140Codec.EncodeBlock("l"));
+    Equal("Helol", text);
+
+    text = T140Codec.ApplyBlock(text, T140Codec.EncodeBlock(T140Codec.CreateBackspaces(2) + "lo\r\nwereld"));
+    Equal("Hello\nwereld", text);
+
+    text = T140Codec.ApplyBlock(text, T140Codec.EncodeBlock(" 😄" + T140Codec.Backspace + "!"));
+    Equal("Hello\nwereld !", text);
+}
+
+static void RtpT140PacketizerSerializesPacket()
+{
+    var packet = RtpT140Packetizer.CreatePacket(
+        "Hoi",
+        sequenceNumber: 42,
+        timestampMilliseconds: 1234,
+        ssrc: 0x11223344,
+        marker: true);
+    var bytes = packet.ToBytes();
+    var parsed = RtpPacket.Parse(bytes);
+
+    Equal((byte)98, parsed.PayloadType);
+    Equal((ushort)42, parsed.SequenceNumber);
+    Equal(1234u, parsed.Timestamp);
+    Equal(0x11223344u, parsed.Ssrc);
+    True(parsed.Marker);
+    Equal("Hoi", RtpT140Packetizer.ReadText(parsed));
+}
+
+static void RtpT140RedundancyPayloadRoundtrips()
+{
+    var previous = T140Codec.EncodeBlock("He");
+    var current = T140Codec.EncodeBlock("llo");
+    var payload = RtpT140RedundantPayload.Create(
+        RtpT140Packetizer.DefaultTextPayloadType,
+        current,
+        new RtpT140RedundantBlock(RtpT140Packetizer.DefaultTextPayloadType, 300, previous));
+
+    var parsed = RtpT140RedundantPayload.Parse(payload);
+
+    Equal((byte)98, parsed.PrimaryPayloadType);
+    Equal("llo", T140Codec.DecodeBlock(parsed.PrimaryPayload));
+    Equal(1, parsed.RedundantBlocks.Count);
+    Equal((byte)98, parsed.RedundantBlocks[0].PayloadType);
+    Equal((ushort)300, parsed.RedundantBlocks[0].TimestampOffset);
+    Equal("He", T140Codec.DecodeBlock(parsed.RedundantBlocks[0].Payload));
 }
 
 static void RttConversationManagerTracksPerContactState()

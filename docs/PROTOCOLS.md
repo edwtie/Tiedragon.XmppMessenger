@@ -431,9 +431,16 @@ available, the client falls back to normal XEP-0301 relay RTT.
 The same `rtt` datachannel now also listens for raw T.140 text payloads. That
 means a peer that sends plain UTF-8 T.140 characters, including backspace/delete
 and CR/LF line breaks, is treated as live call text instead of being ignored.
-The current browser sender still uses the JSON `jingle-rtt` wrapper for final
-message metadata; the raw T.140 listener is the interop path for peers that send
-T.140 directly over the negotiated datachannel.
+The browser sender sends linear live edits as raw T.140 where possible and still
+uses the JSON `jingle-rtt` wrapper for resets, final message metadata and
+non-linear edits.
+
+The core library also contains the first RFC 4103 direction: `T140Codec` handles
+UTF-8 T.140 text blocks and erasures, `RtpPacket` serializes/parses RTP version
+2 packets, `RtpT140Packetizer` creates `text/t140` RTP payloads, and
+`RtpT140RedundantPayload` creates/parses RFC 2198-style redundant payloads used
+with `text/red`. This is the path needed for SIP/IMS text conversation interop;
+the browser datachannel path remains a WebRTC/Jingle profile.
 
 Local verification: a Playwright smoke test with two fresh browser profiles
 started a video call, opened the `rtt` datachannel, logged

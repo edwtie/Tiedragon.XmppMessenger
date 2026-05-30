@@ -2551,9 +2551,10 @@
     }
 
     const text = el.messageInput.value;
-    const actions = createDeltaActions(state.previousText, text);
+    const previousText = state.previousText;
+    const actions = createDeltaActions(previousText, text);
     state.previousText = text;
-    if (sendJingleRttSyncPacket("edit", text, { actions })) {
+    if (sendJingleRttSyncPacket("edit", text, { actions, previousText })) {
       return;
     }
     sendRttPacket("edit", text, actions);
@@ -3626,6 +3627,18 @@
     }
 
     call.rttSync = normalizeJingleRttSyncDescriptor(call.rttSync, call.sid, "connected");
+    if (eventName === "edit") {
+      const t140Delta = createT140LinearDelta(options.previousText ?? "", String(text ?? ""));
+      if (t140Delta !== null) {
+        if (t140Delta !== "") {
+          call.rttChannel.send(t140Delta);
+          appendDebug("jingle-rtt-t140-out", `<t140 sid="${escapeXml(call.sid)}">${escapeXml(t140Delta)}</t140>`);
+        }
+
+        return true;
+      }
+    }
+
     const packet = {
       type: "jingle-rtt-sync",
       namespace: jingleRttSyncNamespace,
@@ -3728,6 +3741,20 @@
     setPeerPresence(conversation.peer, "online");
     appendDebug("jingle-rtt-t140-in", `<t140 sid="${escapeXml(call.sid)}">${escapeXml(payload)}</t140>`);
     updateRemoteDraftMessage(conversation.id);
+  }
+
+  function createT140LinearDelta(previous, next) {
+    const previousText = String(previous ?? "");
+    const nextText = String(next ?? "");
+    if (nextText.startsWith(previousText)) {
+      return nextText.slice(previousText.length);
+    }
+
+    if (previousText.startsWith(nextText)) {
+      return t140Backspace.repeat(Array.from(previousText.slice(nextText.length)).length);
+    }
+
+    return null;
   }
 
   function applyT140Delta(previous, payload) {

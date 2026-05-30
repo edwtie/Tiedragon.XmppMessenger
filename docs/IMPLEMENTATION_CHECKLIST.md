@@ -49,6 +49,10 @@ item is implemented, tested and documented.
   co-session WebRTC datachannel with XEP-0301 relay fallback.
 - [x] `rtt` datachannel listens for raw UTF-8 T.140 payloads and applies
   backspace/delete plus CR/LF as live call text.
+- [x] Browser sends linear live edits as raw T.140 over the negotiated `rtt`
+  datachannel and keeps the JSON wrapper for reset/final/non-linear metadata.
+- [x] Core RFC 4103 direction started: T.140 codec, RTP v2 packet parser,
+  `text/t140` packetizer and RFC 2198 `text/red` redundant payload helper.
 - [x] ProtoXEP Jingle synchronized RTT Playwright retest passed with two fresh
   browser profiles: video call connected, `rtt` datachannel opened,
   `jingle-rtt-out`/`jingle-rtt-in` logged, live draft displayed and final
